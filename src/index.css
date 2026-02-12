@@ -4,10 +4,10 @@
 
 @layer base {
   * {
-    @apply border-neutral-800;
+    @apply border-slate-200 dark:border-neutral-800;
   }
   body {
-    @apply bg-neutral-950 text-neutral-100 font-sans;
+    @apply bg-slate-50 text-slate-900 dark:bg-neutral-950 dark:text-neutral-100 font-sans transition-colors duration-500;
   }
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
@@ -21,69 +21,71 @@
 
 @layer components {
   .card {
-    @apply bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-xl p-5;
+    @apply bg-white dark:bg-neutral-900/80 backdrop-blur-sm border border-slate-200 dark:border-neutral-800 rounded-xl p-5 shadow-sm dark:shadow-none;
   }
   .input-field {
-    @apply w-full bg-neutral-800/60 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100
-           placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500/40 focus:border-neutral-500
+    @apply w-full bg-white dark:bg-neutral-800/60 border border-slate-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-neutral-100
+           placeholder-slate-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:focus:ring-neutral-500/40 focus:border-sky-300 dark:focus:border-neutral-500
            transition-all duration-200;
   }
   .input-label {
-    @apply block text-xs font-medium text-neutral-400 mb-1.5 uppercase tracking-wider;
+    @apply block text-xs font-medium text-slate-500 dark:text-neutral-400 mb-1.5 uppercase tracking-wider;
   }
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-neutral-700 hover:bg-neutral-600
-           text-white text-sm font-medium rounded-lg transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-neutral-500/50
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-slate-200 dark:bg-neutral-700 hover:bg-slate-300 dark:hover:bg-neutral-600
+           text-slate-900 dark:text-white text-sm font-medium rounded-lg transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-sky-200 dark:focus:ring-neutral-500/50
            active:scale-[0.98];
   }
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700
-           text-neutral-300 text-sm font-medium rounded-lg border border-neutral-700
-           transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-600/50
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700
+           text-slate-600 dark:text-neutral-300 text-sm font-medium rounded-lg border border-slate-300 dark:border-neutral-700
+           transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:focus:ring-neutral-600/50
            active:scale-[0.98];
   }
   .btn-ghost {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 text-neutral-400 hover:text-neutral-200
-           hover:bg-neutral-800/60 text-sm rounded-lg transition-all duration-200;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-200
+           hover:bg-slate-100 dark:hover:bg-neutral-800/60 text-sm rounded-lg transition-all duration-200;
   }
   .btn-danger {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 text-red-400 hover:text-red-300
-           hover:bg-red-900/20 text-sm rounded-lg transition-all duration-200;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300
+           hover:bg-red-50 dark:hover:bg-red-900/20 text-sm rounded-lg transition-all duration-200;
   }
   .stat-card {
-    @apply bg-neutral-900/60 border border-neutral-800 rounded-xl p-4 flex flex-col gap-1;
+    @apply bg-white dark:bg-neutral-900/60 border border-slate-200 dark:border-neutral-800 rounded-xl p-4 flex flex-col gap-1 shadow-sm dark:shadow-none;
   }
   .select-field {
-    @apply w-full bg-neutral-800/60 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100
-           focus:outline-none focus:ring-2 focus:ring-neutral-500/40 focus:border-neutral-500
+    @apply w-full bg-white dark:bg-neutral-800/60 border border-slate-300 dark:border-neutral-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-neutral-100
+           focus:outline-none focus:ring-2 focus:ring-sky-200 dark:focus:ring-neutral-500/40 focus:border-sky-300 dark:focus:border-neutral-500
            transition-all duration-200 cursor-pointer;
   }
   .toggle-btn {
     @apply text-xs py-1.5 px-3 rounded-md transition-all;
   }
   .toggle-btn-active {
-    @apply bg-neutral-700/60 text-neutral-200 border border-neutral-600;
+    @apply bg-slate-200 dark:bg-neutral-700/60 text-slate-800 dark:text-neutral-200 border border-slate-300 dark:border-neutral-600;
   }
   .toggle-btn-inactive {
-    @apply bg-neutral-800/40 text-neutral-500 border border-neutral-700/50 hover:text-neutral-400;
+    @apply bg-white dark:bg-neutral-800/40 text-slate-400 dark:text-neutral-500 border border-slate-200 dark:border-neutral-700/50 hover:text-slate-600 dark:hover:text-neutral-400;
   }
 }
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #525252; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb { background: #404040; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #525252; }
 
 /* recharts */
 .recharts-tooltip-wrapper { outline: none !important; }
 
 /* color swatch button */
 .color-swatch {
-  @apply w-6 h-6 rounded-md border-2 border-neutral-700 cursor-pointer transition-all
-         hover:scale-110 hover:border-neutral-500;
+  @apply w-6 h-6 rounded-md border-2 border-slate-300 dark:border-neutral-700 cursor-pointer transition-all
+         hover:scale-110 hover:border-slate-400 dark:hover:border-neutral-500;
 }
 .color-swatch-active {
-  @apply border-white ring-2 ring-white/30;
+  @apply border-sky-500 dark:border-white ring-2 ring-sky-500/30 dark:ring-white/30;
 }

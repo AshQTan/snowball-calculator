@@ -24,10 +24,10 @@ export default function FundConfigurator({
   const [showColors, setShowColors] = useState(false);
 
   return (
-    <div className="bg-neutral-800/40 border border-neutral-700/50 rounded-lg overflow-hidden">
+    <div className="bg-slate-50/80 dark:bg-neutral-800/40 border border-slate-200 dark:border-neutral-700/50 rounded-lg overflow-hidden">
       {/* Header bar */}
       <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-neutral-800/60 transition-colors"
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800/60 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <button
@@ -38,7 +38,7 @@ export default function FundConfigurator({
         />
         <input
           type="text"
-          className="flex-1 bg-transparent border-none text-sm font-medium text-neutral-200 focus:outline-none placeholder-neutral-600 min-w-0"
+          className="flex-1 bg-transparent border-none text-sm font-medium text-slate-800 dark:text-neutral-200 focus:outline-none placeholder-slate-400 dark:placeholder-neutral-600 min-w-0"
           value={fund.name}
           onChange={(e) => onChange({ name: e.target.value })}
           onClick={(e) => e.stopPropagation()}
@@ -55,9 +55,9 @@ export default function FundConfigurator({
             </button>
           )}
           {expanded ? (
-            <ChevronUp className="w-4 h-4 text-neutral-500" />
+            <ChevronUp className="w-4 h-4 text-slate-400 dark:text-neutral-500" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-neutral-500" />
+            <ChevronDown className="w-4 h-4 text-slate-400 dark:text-neutral-500" />
           )}
         </div>
       </div>
@@ -78,7 +78,7 @@ export default function FundConfigurator({
               type="color"
               value={fund.color}
               onChange={(e) => { onChange({ color: e.target.value }); }}
-              className="w-6 h-6 rounded-md cursor-pointer border-2 border-neutral-700"
+              className="w-6 h-6 rounded-md cursor-pointer border-2 border-slate-300 dark:border-neutral-700"
               title="Custom color"
             />
           </div>
@@ -87,7 +87,7 @@ export default function FundConfigurator({
 
       {/* Expanded settings */}
       {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-neutral-700/30 pt-3">
+        <div className="px-4 pb-4 space-y-3 border-t border-slate-200/50 dark:border-neutral-700/30 pt-3">
           {/* Return Rate */}
           <div>
             <label className="input-label">Projected Return Rate</label>
@@ -101,7 +101,7 @@ export default function FundConfigurator({
                 max={50}
                 step={0.5}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
             </div>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {PRESET_RETURNS.map((p) => (
@@ -109,8 +109,8 @@ export default function FundConfigurator({
                   key={p.label}
                   className={`text-[10px] px-2 py-0.5 rounded-md transition-all ${
                     fund.returnRate === p.rate
-                      ? 'bg-neutral-600/40 text-neutral-200 border border-neutral-500/50'
-                      : 'bg-neutral-700/20 text-neutral-500 border border-neutral-700/30 hover:text-neutral-400'
+                      ? 'bg-sky-100 dark:bg-neutral-600/40 text-sky-700 dark:text-neutral-200 border border-sky-300 dark:border-neutral-500/50'
+                      : 'bg-slate-100 dark:bg-neutral-700/20 text-slate-400 dark:text-neutral-500 border border-slate-200 dark:border-neutral-700/30 hover:text-slate-600 dark:hover:text-neutral-400'
                   }`}
                   onClick={() => onChange({ returnRate: p.rate })}
                 >
@@ -156,18 +156,18 @@ export default function FundConfigurator({
                         min={0}
                         step={1}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">%</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
                     </>
                   )}
                 </div>
                 {showIncomeOption && (
-                  <div className="flex bg-neutral-800 rounded-lg p-0.5 h-[38px]">
+                  <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 h-[38px]">
                     <button
-                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionType === 'fixed' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionType === 'fixed' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
                       onClick={() => onChange({ contributionType: 'fixed' })}
                     >$</button>
                     <button
-                      className={`px-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${fund.contributionType === 'percent_of_income' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+                      className={`px-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${fund.contributionType === 'percent_of_income' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
                       onClick={() => onChange({ contributionType: 'percent_of_income' })}
                     >%</button>
                   </div>
@@ -200,23 +200,23 @@ export default function FundConfigurator({
                       max={fund.contributionGrowthType === 'percent' ? 30 : 10000}
                       step={fund.contributionGrowthType === 'percent' ? 0.5 : 1}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">
                       {fund.contributionGrowthType === 'percent' ? '%' : '$'}
                     </span>
                   </div>
-                  <div className="flex bg-neutral-800 rounded-lg p-0.5 h-[38px]">
+                  <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 h-[38px]">
                     <button
-                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionGrowthType === 'fixed' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionGrowthType === 'fixed' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
                       onClick={() => onChange({ contributionGrowthType: 'fixed', contributionGrowthRate: 0 })}
                     >$</button>
                     <button
-                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionGrowthType === 'percent' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+                      className={`px-2 rounded-md text-xs font-medium transition-all ${fund.contributionGrowthType === 'percent' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
                       onClick={() => onChange({ contributionGrowthType: 'percent', contributionGrowthRate: 0 })}
                     >%</button>
                   </div>
                 </div>
                 <div className="flex gap-1.5 items-center">
-                  <span className="text-xs text-neutral-500 whitespace-nowrap">every</span>
+                  <span className="text-xs text-slate-400 dark:text-neutral-500 whitespace-nowrap">every</span>
                   <div className="relative flex-1">
                     <input
                       type="number"
@@ -227,7 +227,7 @@ export default function FundConfigurator({
                       max={50}
                       step={1}
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]">
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-[10px]">
                       {fund.contributionGrowthInterval === 1 ? 'yr' : 'yrs'}
                     </span>
                   </div>

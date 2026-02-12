@@ -23,6 +23,7 @@ interface ProjectionChartProps {
   showReal: boolean;
   timelineMode: 'years' | 'retirement';
   chartMode: ChartMode;
+  darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
 }
 
@@ -87,9 +88,13 @@ export default function ProjectionChart({
   showReal,
   timelineMode,
   chartMode,
+  darkMode,
   onChartModeChange,
 }: ProjectionChartProps) {
   const hasManyFunds = funds.length > 1;
+  const gridColor = darkMode ? '#262626' : '#e2e8f0';
+  const tickColor = darkMode ? '#737373' : '#64748b';
+  const axisColor = darkMode ? '#262626' : '#e2e8f0';
 
   const chartData = useMemo(() => {
     return schedule.map((row) => {
@@ -156,25 +161,25 @@ export default function ProjectionChart({
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
           Projection
         </h2>
         <div className="flex items-center gap-2">
           {showReal && (
-            <span className="text-[10px] text-orange-400/80 bg-orange-900/20 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] text-red-500 dark:text-red-400/80 bg-red-100 dark:bg-red-900/20 px-2 py-0.5 rounded-md">
               Inflation-adjusted
             </span>
           )}
-          <div className="flex bg-neutral-800 rounded-lg p-0.5">
+          <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'line' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('line')}
               title="Line chart"
             >
               <LineChart className="w-4 h-4" />
             </button>
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'bar' ? 'bg-neutral-700 text-neutral-200' : 'text-neutral-500 hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('bar')}
               title="Bar chart"
             >
@@ -202,22 +207,22 @@ export default function ProjectionChart({
                   <stop offset="100%" stopColor={COLOR_INTEREST} stopOpacity={0.1} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: '#737373', fontSize: 11 }}
+                tick={{ fill: tickColor, fontSize: 11 }}
                 tickLine={false}
-                axisLine={{ stroke: '#262626' }}
+                axisLine={{ stroke: axisColor }}
                 interval={tickInterval}
               />
               <YAxis
-                tick={{ fill: '#737373', fontSize: 11 }}
+                tick={{ fill: tickColor, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} />} />
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} />} />
               {hasManyFunds ? (
                 funds.map((fund) => (
                   <Area
@@ -255,22 +260,22 @@ export default function ProjectionChart({
             </AreaChart>
           ) : (
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: '#737373', fontSize: 11 }}
+                tick={{ fill: tickColor, fontSize: 11 }}
                 tickLine={false}
-                axisLine={{ stroke: '#262626' }}
+                axisLine={{ stroke: axisColor }}
                 interval={tickInterval}
               />
               <YAxis
-                tick={{ fill: '#737373', fontSize: 11 }}
+                tick={{ fill: tickColor, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} />} />
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} />} />
               {hasManyFunds ? (
                 // stacked by fund
                 funds.map((fund) => (
@@ -333,7 +338,7 @@ export default function ProjectionChart({
         {milestoneData.map((m) => (
           <div key={m.amount} className="flex items-center gap-1.5">
             <LegendChevrons count={m.chevronCount} />
-            <span className="text-xs text-neutral-500">{m.label}</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
           </div>
         ))}
       </div>
@@ -349,7 +354,7 @@ function LegendItem({ color, label, type = 'line' }: { color: string; label: str
       ) : (
         <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
       )}
-      <span className="text-xs text-neutral-500">{label}</span>
+      <span className="text-xs text-slate-400 dark:text-neutral-500">{label}</span>
     </div>
   );
 }
@@ -367,6 +372,7 @@ interface ChartTooltipProps {
   funds: Fund[];
   showReal: boolean;
   timelineMode: 'years' | 'retirement';
+  darkMode: boolean;
 }
 
 function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }: ChartTooltipProps) {
@@ -375,14 +381,14 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }:
   const balance = data?.balance ?? 0;
 
   return (
-    <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-3 shadow-xl min-w-[180px]">
-      <p className="text-xs font-medium text-neutral-400 mb-2">
+    <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded-lg p-3 shadow-xl min-w-[180px]">
+      <p className="text-xs font-medium text-slate-500 dark:text-neutral-400 mb-2">
         {timelineMode === 'retirement' ? `Age ${label}` : `Year ${label}`}
       </p>
       <div className="space-y-1.5">
         <div className="flex justify-between gap-4">
-          <span className="text-xs text-neutral-300">Total Balance</span>
-          <span className="text-xs font-medium text-white">{formatCurrency(balance)}</span>
+          <span className="text-xs text-slate-600 dark:text-neutral-300">Total Balance</span>
+          <span className="text-xs font-medium text-slate-900 dark:text-white">{formatCurrency(balance)}</span>
         </div>
         {funds.length > 1 ? (
           funds.map((f) => (
@@ -391,7 +397,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }:
                 <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
                 {f.name}
               </span>
-              <span className="text-xs font-medium text-neutral-300">
+              <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
                 {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
               </span>
             </div>
@@ -400,19 +406,19 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }:
           <>
             <div className="flex justify-between gap-4">
               <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
-              <span className="text-xs text-neutral-300">{formatCurrency(data?.startingBal ?? 0)}</span>
+              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.startingBal ?? 0)}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-              <span className="text-xs text-neutral-300">{formatCurrency(data?.contributions ?? 0)}</span>
+              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.contributions ?? 0)}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-              <span className="text-xs text-neutral-300">{formatCurrency(data?.interest ?? 0)}</span>
+              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.interest ?? 0)}</span>
             </div>
           </>
         )}
-        {showReal && <p className="text-[10px] text-neutral-600 mt-1">In today's dollars</p>}
+        {showReal && <p className="text-[10px] text-slate-400 dark:text-neutral-600 mt-1">In today's dollars</p>}
       </div>
     </div>
   );

@@ -27,11 +27,11 @@ export default function FundsPanel({ funds, showIncomeOption, onChange }: FundsP
     <div className="card space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
             Funds
           </h2>
           {totalStarting > 0 && (
-            <p className="text-xs text-neutral-500 mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 mt-0.5">
               Total starting: ${totalStarting.toLocaleString()}
             </p>
           )}

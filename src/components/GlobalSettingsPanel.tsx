@@ -9,7 +9,7 @@ interface GlobalSettingsPanelProps {
 export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettingsPanelProps) {
   return (
     <div className="card space-y-5">
-      <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider">
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
         Global Settings
       </h2>
 
@@ -45,7 +45,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
               />
               <input
                 type="range"
-                className="w-full mt-2 accent-neutral-400"
+                className="w-full mt-2 accent-sky-500 dark:accent-neutral-400"
                 value={settings.years}
                 onChange={(e) => onChange({ years: Number(e.target.value) })}
                 min={1}
@@ -85,11 +85,11 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
           <label className="input-label text-right w-full">Inflation</label>
           <div className="flex items-center h-[30px] mb-3">
             <button
-              className={`w-full toggle-btn ${settings.showReal ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40' : 'toggle-btn-inactive'} group relative`}
+              className={`w-full toggle-btn ${settings.showReal ? 'bg-red-100 text-red-600 border border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/40' : 'toggle-btn-inactive'} group relative`}
               onClick={() => onChange({ showReal: !settings.showReal })}
             >
               {settings.showReal ? 'On' : 'Off'}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-xs text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
                 Enable to adjust all values for inflation, showing amounts in today's purchasing power.
               </div>
             </button>
@@ -105,7 +105,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
                 max={20}
                 step={0.5}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
             </div>
           )}
         </div>
@@ -136,11 +136,11 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
                 max={30}
                 step={0.5}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">%</span>
-            </div>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
+              </div>
           </div>
         </div>
-        <p className="text-xs text-neutral-600 mt-1">Used when fund contribution is set as % of income</p>
+        <p className="text-xs text-slate-400 dark:text-neutral-600 mt-1">Used when fund contribution is set as % of income</p>
       </div>
     </div>
   );

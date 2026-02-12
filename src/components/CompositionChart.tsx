@@ -40,10 +40,10 @@ export default function CompositionChart({
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-neutral-300 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
           Wealth Composition
         </h2>
-        <span className="text-sm text-neutral-400 font-medium">{yearLabel}</span>
+        <span className="text-sm text-slate-500 dark:text-neutral-400 font-medium">{yearLabel}</span>
       </div>
 
       {/* Stacked horizontal bar */}
@@ -89,13 +89,13 @@ export default function CompositionChart({
         <div className="pt-1">
           <input
             type="range"
-            className="w-full accent-neutral-400"
+            className="w-full accent-sky-500 dark:accent-neutral-400"
             min={1}
             max={schedule.length}
             value={clampedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
           />
-          <div className="flex justify-between text-[10px] text-neutral-600 mt-0.5">
+          <div className="flex justify-between text-[10px] text-slate-400 dark:text-neutral-600 mt-0.5">
             <span>{timelineMode === 'retirement' && schedule[0]?.age ? `Age ${schedule[0].age}` : 'Year 1'}</span>
             <span>
               {timelineMode === 'retirement' && schedule[schedule.length - 1]?.age
@@ -118,13 +118,13 @@ export default function CompositionChart({
 
 function DetailCard({ color, label, pct, value }: { color: string; label: string; pct: number; value: number }) {
   return (
-    <div className="bg-neutral-800/40 rounded-lg p-3">
+    <div className="bg-slate-50 dark:bg-neutral-800/40 rounded-lg p-3">
       <div className="flex items-center gap-1.5 mb-1">
         <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
-        <span className="text-[10px] text-neutral-500 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">{label}</span>
       </div>
-      <div className="text-sm font-semibold text-neutral-200 tabular-nums">{formatPercent(pct)}</div>
-      <div className="text-xs text-neutral-500 tabular-nums">{formatCurrency(value)}</div>
+      <div className="text-sm font-semibold text-slate-800 dark:text-neutral-200 tabular-nums">{formatPercent(pct)}</div>
+      <div className="text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(value)}</div>
     </div>
   );
 }
@@ -133,7 +133,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
-      <span className="text-xs text-neutral-500">{label}</span>
+      <span className="text-xs text-slate-400 dark:text-neutral-500">{label}</span>
     </div>
   );
 }

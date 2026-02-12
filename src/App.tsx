@@ -13,6 +13,12 @@ import ScheduleTable from './components/ScheduleTable';
 export default function App() {
   const [state, setState] = useState<AppState>(() => stateFromURL() || getDefaultState());
   const [shareToast, setShareToast] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   const result = useMemo(() => computeProjection(state), [state]);
 
@@ -50,8 +56,8 @@ export default function App() {
   const showIncomeOption = state.global.income > 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950">
-      <Header onShare={handleShare} onExport={handleExport} />
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-neutral-950 transition-colors duration-500">
+      <Header onShare={handleShare} onExport={handleExport} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
@@ -71,6 +77,7 @@ export default function App() {
               showReal={state.global.showReal}
               timelineMode={state.global.timelineMode}
               chartMode={state.chartMode}
+              darkMode={darkMode}
               onChartModeChange={setChartMode}
             />
             <CompositionChart
@@ -90,7 +97,7 @@ export default function App() {
       </main>
 
       {shareToast && (
-        <div className="fixed bottom-6 right-6 bg-neutral-800 border border-neutral-700 text-neutral-200 text-sm px-4 py-2.5 rounded-lg shadow-xl z-50">
+        <div className="fixed bottom-6 right-6 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-800 dark:text-neutral-200 text-sm px-4 py-2.5 rounded-lg shadow-xl z-50">
           Link copied to clipboard!
         </div>
       )}
