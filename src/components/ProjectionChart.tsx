@@ -221,7 +221,7 @@ export default function ProjectionChart({
         </h2>
         <div className="flex items-center gap-2">
           {showReal && (
-            <span className="text-[10px] text-red-500 dark:text-red-400/80 bg-red-100 dark:bg-red-900/20 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] text-orange-700 dark:text-orange-400/80 bg-orange-100 dark:bg-orange-900/20 px-2 py-0.5 rounded-md">
               Inflation-adjusted
             </span>
           )}

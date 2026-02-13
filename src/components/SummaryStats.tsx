@@ -20,7 +20,7 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayBalance)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
-          {showReal && <span className="text-[10px] text-red-500/80 dark:text-red-400/70">in today's dollars</span>}
+          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/70">in today's dollars</span>}
         </div>
         <div className="stat-card items-center text-center">
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>

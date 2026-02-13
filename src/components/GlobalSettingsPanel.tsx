@@ -85,7 +85,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
           <label className="input-label text-right w-full">Inflation</label>
           <div className="flex items-center h-[30px] mb-3">
             <button
-              className={`w-full toggle-btn ${settings.showReal ? 'bg-red-100 text-red-600 border border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/40' : 'toggle-btn-inactive'} group relative`}
+              className={`w-full toggle-btn ${settings.showReal ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/40' : 'toggle-btn-inactive'} group relative`}
               onClick={() => onChange({ showReal: !settings.showReal })}
             >
               {settings.showReal ? 'On' : 'Off'}

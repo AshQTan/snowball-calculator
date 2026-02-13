@@ -186,7 +186,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>{formatCurrency(row.totalInterest)}</td>
                   <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-red-500/80 dark:text-red-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>,
               ];
@@ -259,7 +259,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   ))}
                   <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-red-500/80 dark:text-red-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>
               );
@@ -328,7 +328,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   })}
                   <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-red-500/80 dark:text-red-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>
               );

@@ -90,7 +90,7 @@ export const MILESTONE_ICONS = [
 ];
 
 export const FUND_COLORS = [
-  '#38bdf8', '#f472b6', '#a78bfa', '#2dd4bf', '#fb923c', '#f87171',
+  '#38bdf8', '#f87171', '#2dd4bf', '#fb923c', '#a78bfa', '#f472b6',
 ];
 
 export const PRESET_RETURNS: { label: string; rate: number }[] = [
