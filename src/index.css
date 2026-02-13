@@ -89,3 +89,93 @@
 .color-swatch-active {
   @apply border-sky-500 dark:border-white ring-2 ring-sky-500/30 dark:ring-white/30;
 }
+
+/* Print / PDF export styles */
+@media print {
+  /* Reset backgrounds and colors for print */
+  html, body {
+    background: white !important;
+    color: #1e293b !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove dark mode overrides */
+  .dark {
+    background: white !important;
+    color: #1e293b !important;
+  }
+
+  /* Hide interactive/non-essential elements */
+  header,
+  .btn-ghost,
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  button,
+  select,
+  input[type="range"],
+  input[type="number"],
+  input[type="text"],
+  input[type="color"],
+  .toggle-btn,
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  /* Hide the left settings panel entirely */
+  .lg\:sticky {
+    display: none !important;
+  }
+
+  /* Make the right panel full width */
+  .grid {
+    display: block !important;
+  }
+
+  /* Remove max-width constraint */
+  .max-w-\[1600px\] {
+    max-width: 100% !important;
+  }
+
+  /* Ensure cards have visible borders for print */
+  .card, .stat-card {
+    border: 1px solid #e2e8f0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  /* Force all text to dark for readability */
+  .dark\:text-white,
+  .dark\:text-neutral-100,
+  .dark\:text-neutral-200,
+  .dark\:text-neutral-300 {
+    color: #1e293b !important;
+  }
+
+  /* Show all table rows — don't hide behind "Show All" */
+  tbody tr {
+    display: table-row !important;
+  }
+
+  /* Page break management */
+  .card {
+    page-break-inside: avoid;
+  }
+
+  /* Remove sticky positioning */
+  .sticky {
+    position: static !important;
+  }
+
+  /* Hide toast */
+  .fixed {
+    display: none !important;
+  }
+
+  /* Ensure charts are visible */
+  .recharts-responsive-container {
+    page-break-inside: avoid;
+  }
+}

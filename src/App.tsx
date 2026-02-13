@@ -116,7 +116,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-neutral-950 transition-colors duration-500">
-      <Header onShare={handleShare} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
+      <Header onShare={handleShare} onExportPDF={() => window.print()} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
