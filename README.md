@@ -1,52 +1,63 @@
 # Snowball
 
-A client-side investment growth calculator that projects portfolio value over time. Configure one or more funds with different contribution strategies and return rates, then visualize how they compound year by year.
+A client-side compound wealth calculator that projects portfolio value over time. Configure one or more investment funds with different contribution strategies, return rates, and starting balances, then visualize how they compound year by year. Everything runs in the browser — no server, database, or account required.
 
 Built with React, TypeScript, Vite, Tailwind CSS, and Recharts.
 
 ## Features
 
-### Multi-Fund Support
+### Multi-Fund Portfolio Modeling
 
-Set up multiple funds, each with its own starting balance, contribution schedule, and expected return rate. Useful for modeling diversified portfolios or comparing strategies side by side.
+Set up multiple funds (e.g. 401k, IRA, brokerage), each with its own name, color, starting balance, contribution schedule, and expected return rate. Useful for modeling diversified portfolios or comparing strategies side by side. Funds include preset return rates (Conservative 5%, Moderate 7%, Aggressive 10%, S&P 500 Historical 10.5%) and a color picker with six presets plus custom hex input.
 
 ### Flexible Contributions
 
 - **Fixed or income-based**: Contribute a flat dollar amount, or allocate a percentage of your annual income.
 - **Monthly or annual frequency**: Choose how often contributions are made.
-- **Contribution growth**: Increase contributions over time by a fixed dollar amount or a percentage, on a configurable interval (e.g., raise contributions 3% every 2 years).
+- **Contribution escalation**: Increase contributions over time by a fixed dollar amount or a percentage, on a configurable interval (e.g., raise contributions 3% every 2 years). Income-based contributions grow automatically with income.
 
 ### Timeline Modes
 
-- **Years**: Project growth over a specified number of years.
+- **Years**: Project growth over a specified number of years (1–60), with a range slider for quick adjustment.
 - **Retirement age**: Set your current age and target retirement age, and the calculator figures out the horizon for you.
 
 ### Inflation Adjustment
 
-Enter an expected inflation rate to see projections in today's dollars. Toggle between nominal and real (inflation-adjusted) values at any time.
+Enter an expected inflation rate to see projections in today's dollars. Toggle between nominal and real (inflation-adjusted) values at any time. An orange badge indicates when inflation adjustment is active.
 
 ### Income Modeling
 
-Specify your current annual income and an expected growth rate. Funds configured with percentage-of-income contributions will adjust automatically as income grows.
+Specify your current annual income and an expected growth rate. Funds configured with percentage-of-income contributions adjust automatically as income grows. A warning banner appears if total annual contributions across all funds exceed projected income.
 
 ### Interactive Charts
 
-- **Projection chart**: Line or bar chart showing total portfolio value over time, with milestone markers at key thresholds ($100K, $250K, $500K, $1M, etc.).
-- **Composition chart**: Stacked area chart showing how each fund contributes to the overall portfolio.
+- **Projection chart**: Switch between line (area) and bar chart modes. For multi-fund portfolios, choose from three view modes:
+  - **Fund × Type** — each fund split into starting balance, contributions, and interest
+  - **By Fund** — stacked by fund
+  - **By Type** — aggregate starting balance, contributions, and interest
+- **Composition chart**: Horizontal stacked bar showing portfolio composition at any given year, with a year slider to scrub through the timeline. View in combined mode (starting/contributions/interest) or by fund, with detail cards showing values and percentages.
+
+### Milestones
+
+Built-in milestone markers at key thresholds ($10K, $25K, $50K, $100K, $250K, $500K, $1M, $2.5M, $5M, $10M) appear on the projection chart when crossed. Create custom milestones with a name, target amount, and emoji icon (16 options). Custom milestones are displayed as clickable badges below the chart.
 
 ### Summary Statistics
 
 At-a-glance metrics including:
 
-- Final balance (nominal or real)
-- Total amount invested (starting balance + contributions)
-- Total interest earned
-- Effective CAGR (compound annual growth rate)
+- Final balance (nominal or real, with year count)
+- Total amount invested (starting balance + contributions breakdown)
+- Total interest earned (with percentage of total)
+- Effective CAGR (compound annual growth rate) with tooltip explanation
 - Estimated doubling time (Rule of 72)
 
 ### Year-by-Year Schedule
 
-A detailed table breaking down each year's starting balance, contributions, interest, and ending balance — with per-fund detail.
+A detailed table breaking down each year's starting balance, contributions, interest, and ending balance. For multi-fund portfolios, three view modes are available: combined (with expandable per-fund detail rows), by fund (columnar), and fund × type (split with sub-headers). Rows are highlighted when milestones are reached. Includes an inflation-adjusted column when enabled, and pagination with a "Show All" toggle.
+
+### Dark Mode
+
+Toggle between light and dark themes. Preference is persisted to `localStorage` and applied before first paint to avoid flash.
 
 ### Shareable Links
 
@@ -54,7 +65,7 @@ The full calculator state is serialized into the URL. Copy the link to share a s
 
 ### CSV Export
 
-Export the year-by-year schedule as a CSV file for use in spreadsheets or further analysis.
+Export the year-by-year schedule as a `.csv` file for use in spreadsheets or further analysis.
 
 ## Getting Started
 
