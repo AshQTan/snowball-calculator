@@ -116,6 +116,10 @@ const BAR_VIEW_LABELS: Record<BarViewMode, string> = {
   'by-type': 'By Type',
 };
 
+function fundGradientId(fundId: string, kind: 'starting' | 'contrib' | 'interest') {
+  return `grad_${fundId}_${kind}`;
+}
+
 export default function ProjectionChart({
   schedule,
   funds,
@@ -127,7 +131,7 @@ export default function ProjectionChart({
   onChartModeChange,
 }: ProjectionChartProps) {
   const hasManyFunds = funds.length > 1;
-  const [barView, setBarView] = useState<BarViewMode>('split');
+  const [stackView, setStackView] = useState<BarViewMode>('split');
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
   const tickColor = darkMode ? '#737373' : '#64748b';
   const axisColor = darkMode ? '#262626' : '#e2e8f0';
@@ -216,10 +220,10 @@ export default function ProjectionChart({
               Inflation-adjusted
             </span>
           )}
-          {chartMode === 'bar' && hasManyFunds && (
+          {hasManyFunds && (
             <div className="relative group">
               <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
-                {BAR_VIEW_LABELS[barView]}
+                {BAR_VIEW_LABELS[stackView]}
                 <ChevronDown className="w-3 h-3" />
               </button>
               <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[120px]">
@@ -227,11 +231,11 @@ export default function ProjectionChart({
                   <button
                     key={mode}
                     className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                      barView === mode
+                      stackView === mode
                         ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
                     }`}
-                    onClick={() => setBarView(mode)}
+                    onClick={() => setStackView(mode)}
                   >
                     {BAR_VIEW_LABELS[mode]}
                   </button>
@@ -275,6 +279,25 @@ export default function ProjectionChart({
                   <stop offset="0%" stopColor={COLOR_INTEREST} stopOpacity={0.5} />
                   <stop offset="100%" stopColor={COLOR_INTEREST} stopOpacity={0.1} />
                 </linearGradient>
+                {hasManyFunds && stackView === 'split' && funds.map((fund) => {
+                  const v = fundVariants(fund.color, darkMode);
+                  return (
+                    <Fragment key={fund.id}>
+                      <linearGradient id={fundGradientId(fund.id, 'starting')} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={v.starting} stopOpacity={0.5} />
+                        <stop offset="100%" stopColor={v.starting} stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id={fundGradientId(fund.id, 'contrib')} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={v.contributions} stopOpacity={0.5} />
+                        <stop offset="100%" stopColor={v.contributions} stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id={fundGradientId(fund.id, 'interest')} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={v.interest} stopOpacity={0.5} />
+                        <stop offset="100%" stopColor={v.interest} stopOpacity={0.1} />
+                      </linearGradient>
+                    </Fragment>
+                  );
+                })}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
@@ -291,8 +314,19 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} />} />
-              {hasManyFunds ? (
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} />} />
+              {hasManyFunds && stackView === 'split' ? (
+                funds.map((fund) => {
+                  const v = fundVariants(fund.color, darkMode);
+                  return (
+                    <Fragment key={fund.id}>
+                      <Area type="monotone" dataKey={`fund_${fund.id}_starting`} stackId="stack" stroke={v.starting} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'starting')})`} dot={false} />
+                      <Area type="monotone" dataKey={`fund_${fund.id}_contrib`} stackId="stack" stroke={v.contributions} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'contrib')})`} dot={false} />
+                      <Area type="monotone" dataKey={`fund_${fund.id}_interest`} stackId="stack" stroke={v.interest} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'interest')})`} dot={false} />
+                    </Fragment>
+                  );
+                })
+              ) : hasManyFunds && stackView === 'by-fund' ? (
                 funds.map((fund) => (
                   <Area
                     key={fund.id}
@@ -344,8 +378,8 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? barView : undefined} />} />
-              {hasManyFunds && barView === 'split' ? (
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} />} />
+              {hasManyFunds && stackView === 'split' ? (
                 // stacked by fund, each split into starting/contributions/interest
                 funds.map((fund, i) => {
                   const v = fundVariants(fund.color, darkMode);
@@ -358,7 +392,7 @@ export default function ProjectionChart({
                     </Fragment>
                   );
                 })
-              ) : hasManyFunds && barView === 'by-fund' ? (
+              ) : hasManyFunds && stackView === 'by-fund' ? (
                 // stacked by fund (solid colors)
                 funds.map((fund) => (
                   <Bar
@@ -398,16 +432,35 @@ export default function ProjectionChart({
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 mt-3 px-2">
         {chartMode === 'line' ? (
-          hasManyFunds ? (
+          hasManyFunds && stackView === 'split' ? (
+            <>
+              {funds.map((f) => {
+                const v = fundVariants(f.color, darkMode);
+                return (
+                  <div key={f.id} className="flex items-center gap-1.5">
+                    <div className="flex">
+                      <div className="w-3 h-0.5 rounded-l" style={{ backgroundColor: v.starting }} />
+                      <div className="w-3 h-0.5" style={{ backgroundColor: v.contributions }} />
+                      <div className="w-3 h-0.5 rounded-r" style={{ backgroundColor: v.interest }} />
+                    </div>
+                    <span className="text-xs text-slate-400 dark:text-neutral-500">{f.name}</span>
+                  </div>
+                );
+              })}
+              <span className="text-[10px] text-slate-400/70 dark:text-neutral-600">
+                dark = starting · mid = contributions · light = interest
+              </span>
+            </>
+          ) : hasManyFunds && stackView === 'by-fund' ? (
             funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} />)
           ) : (
             <>
-              <LegendItem color={COLOR_STARTING} label="Starting Balance" />
-              <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
               <LegendItem color={COLOR_INTEREST} label="Interest" />
+              <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
+              <LegendItem color={COLOR_STARTING} label="Starting Balance" />
             </>
           )
-        ) : hasManyFunds && barView === 'split' ? (
+        ) : hasManyFunds && stackView === 'split' ? (
           <>
             {funds.map((f) => {
               const v = fundVariants(f.color, darkMode);
@@ -426,13 +479,13 @@ export default function ProjectionChart({
               dark = starting · mid = contributions · light = interest
             </span>
           </>
-        ) : hasManyFunds && barView === 'by-fund' ? (
+        ) : hasManyFunds && stackView === 'by-fund' ? (
           funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} type="square" />)
         ) : (
           <>
-            <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
-            <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" type="square" />
             <LegendItem color={COLOR_INTEREST} label="Interest" type="square" />
+            <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" type="square" />
+            <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
           </>
         )}
         {/* Milestones legend entries with distinct symbols */}
@@ -481,6 +534,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
+  const pct = (v: number) => balance > 0 ? `${Math.round(v / balance * 100)}%` : '—';
 
   return (
     <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded-lg p-3 shadow-xl min-w-[180px]">
@@ -494,8 +548,9 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
         </div>
         {funds.length > 1 ? (
           barView === 'split' ? (
-            funds.map((f) => {
+            [...funds].reverse().map((f) => {
               const v = fundVariants(f.color, darkMode);
+              const fundTotal = data?.[`fund_${f.id}`] ?? 0;
               return (
                 <div key={f.id} className="space-y-0.5">
                   <div className="flex justify-between gap-4">
@@ -503,84 +558,120 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
                       <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
                       {f.name}
                     </span>
-                    <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
-                      {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-600 dark:text-neutral-300 tabular-nums">
+                        {formatCurrency(fundTotal)}
+                      </span>
+                      <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(fundTotal)}</span>
+                    </div>
                   </div>
                   <div className="ml-3.5 space-y-0.5">
                     <div className="flex justify-between gap-4">
                       <span className="text-[10px] flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.starting }} />
-                        Starting
+                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.interest }} />
+                        Interest
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
-                        {formatCurrency(data?.[`fund_${f.id}_starting`] ?? 0)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">
+                          {formatCurrency(data?.[`fund_${f.id}_interest`] ?? 0)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.[`fund_${f.id}_interest`] ?? 0)}</span>
+                      </div>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span className="text-[10px] flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.contributions }} />
                         Contributions
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
-                        {formatCurrency(data?.[`fund_${f.id}_contrib`] ?? 0)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">
+                          {formatCurrency(data?.[`fund_${f.id}_contrib`] ?? 0)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.[`fund_${f.id}_contrib`] ?? 0)}</span>
+                      </div>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span className="text-[10px] flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.interest }} />
-                        Interest
+                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.starting }} />
+                        Starting
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
-                        {formatCurrency(data?.[`fund_${f.id}_interest`] ?? 0)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">
+                          {formatCurrency(data?.[`fund_${f.id}_starting`] ?? 0)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.[`fund_${f.id}_starting`] ?? 0)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })
           ) : barView === 'by-fund' ? (
-            funds.map((f) => (
-              <div key={f.id} className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
-                  {f.name}
-                </span>
-                <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
-                  {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
-                </span>
-              </div>
-            ))
+            [...funds].reverse().map((f) => {
+              const val = data?.[`fund_${f.id}`] ?? 0;
+              return (
+                <div key={f.id} className="flex justify-between gap-4">
+                  <span className="text-xs flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
+                    {f.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-600 dark:text-neutral-300 tabular-nums">
+                      {formatCurrency(val)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(val)}</span>
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            // by-type: show aggregated starting / contributions / interest
+            // by-type: show aggregated interest / contributions / starting
             <>
               <div className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
-                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.startingBal ?? 0)}</span>
+                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
+                </div>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.contributions ?? 0)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
+                </div>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.interest ?? 0)}</span>
+                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
+                </div>
               </div>
             </>
           )
         ) : (
           <>
             <div className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
-              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.startingBal ?? 0)}</span>
+              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
+              </div>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.contributions ?? 0)}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
+              </div>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-              <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.interest ?? 0)}</span>
+              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
+              </div>
             </div>
           </>
         )}
