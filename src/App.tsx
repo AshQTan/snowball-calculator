@@ -244,6 +244,7 @@ export default function App() {
               funds={state.funds}
               milestones={showMilestones ? result.milestones : []}
               showReal={state.global.showReal}
+              inflationRate={state.global.inflationRate}
               timelineMode={state.global.timelineMode}
               chartMode={state.chartMode}
               darkMode={darkMode}
@@ -252,12 +253,14 @@ export default function App() {
             <CompositionChart
               schedule={result.schedule}
               funds={state.funds}
+              darkMode={darkMode}
               timelineMode={state.global.timelineMode}
             />
             <ScheduleTable
               schedule={result.schedule}
               funds={state.funds}
               showReal={state.global.showReal}
+              darkMode={darkMode}
               timelineMode={state.global.timelineMode}
               milestones={showMilestones ? result.milestones : []}
               onExport={handleExport}

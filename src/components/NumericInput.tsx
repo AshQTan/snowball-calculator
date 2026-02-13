@@ -70,7 +70,6 @@ export default function NumericInput({
         min={min}
         max={max}
         step={step}
-        readOnly={false}
       />
       {suffix && (
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">

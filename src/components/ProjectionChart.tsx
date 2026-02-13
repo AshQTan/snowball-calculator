@@ -15,12 +15,14 @@ import {
 import { BarChart3, LineChart, ChevronDown } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone, ChartMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 
 interface ProjectionChartProps {
   schedule: YearBreakdown[];
   funds: Fund[];
   milestones: Milestone[];
   showReal: boolean;
+  inflationRate: number;
   timelineMode: 'years' | 'retirement';
   chartMode: ChartMode;
   darkMode: boolean;
@@ -81,38 +83,7 @@ function LegendChevrons({ count }: { count: number }) {
   );
 }
 
-// Distinct colors for single-fund breakdown
-const COLOR_STARTING = '#6366f1'; // indigo
-const COLOR_CONTRIBUTIONS = '#22c55e'; // green
-const COLOR_INTEREST = '#f59e0b'; // amber
 
-// Color utilities for multi-fund bar breakdown
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
-}
-
-function mixColor(hex: string, target: string, amount: number): string {
-  const [r1, g1, b1] = hexToRgb(hex);
-  const [r2, g2, b2] = hexToRgb(target);
-  return rgbToHex(r1 + (r2 - r1) * amount, g1 + (g2 - g1) * amount, b1 + (b2 - b1) * amount);
-}
-
-function fundVariants(color: string, darkMode: boolean) {
-  return {
-    starting: mixColor(color, darkMode ? '#0a0a0a' : '#1e293b', 0.55),
-    contributions: color,
-    interest: mixColor(color, darkMode ? '#e5e5e5' : '#ffffff', 0.45),
-  };
-}
 
 type BarViewMode = 'split' | 'by-fund' | 'by-type';
 const BAR_VIEW_LABELS: Record<BarViewMode, string> = {
@@ -130,6 +101,7 @@ export default function ProjectionChart({
   funds,
   milestones,
   showReal,
+  inflationRate,
   timelineMode,
   chartMode,
   darkMode,
@@ -169,8 +141,8 @@ export default function ProjectionChart({
           year: row.year,
           balance,
           startingBal: row.cumulativeStartingBalance,
-          contributions: showReal ? row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeContributions,
-          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeInterest,
+          contributions: showReal ? row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeContributions,
+          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeInterest,
           ...fundData,
         };
       } else {
@@ -180,12 +152,12 @@ export default function ProjectionChart({
           year: row.year,
           balance,
           startingBal: row.cumulativeStartingBalance,
-          contributions: showReal ? row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeContributions,
-          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeInterest,
+          contributions: showReal ? row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeContributions,
+          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeInterest,
         };
       }
     });
-  }, [schedule, funds, showReal, timelineMode, hasManyFunds]);
+  }, [schedule, funds, showReal, inflationRate, timelineMode, hasManyFunds]);
 
   const milestoneData = useMemo(() => {
     return milestones.map((m, i) => {
@@ -634,58 +606,41 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
               );
             })
           ) : (
-            // by-type: show aggregated interest / contributions / starting
-            <>
-              <div className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
-                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
-                </div>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
-                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
-                </div>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
-                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
-                </div>
-              </div>
-            </>
+            <TooltipByType data={data} pct={pct} />
           )
         ) : (
-          <>
-            <div className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
-                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
-              </div>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
-                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
-              </div>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
-                <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
-              </div>
-            </div>
-          </>
+          <TooltipByType data={data} pct={pct} />
         )}
         {showReal && <p className="text-[10px] text-slate-400 dark:text-neutral-600 mt-1">In today's dollars</p>}
       </div>
     </div>
+  );
+}
+
+function TooltipByType({ data, pct }: { data: Record<string, number>; pct: (v: number) => string }) {
+  return (
+    <>
+      <div className="flex justify-between gap-4">
+        <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+          <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
+        </div>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+          <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
+        </div>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+          <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
+        </div>
+      </div>
+    </>
   );
 }

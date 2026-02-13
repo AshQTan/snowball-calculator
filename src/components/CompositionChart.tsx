@@ -1,44 +1,14 @@
 import { useState, useMemo } from 'react';
 import { YearBreakdown, Fund } from '../types';
 import { formatPercent, formatCurrency } from '../utils/formatters';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 import { ChevronDown } from 'lucide-react';
 
 interface CompositionChartProps {
   schedule: YearBreakdown[];
   funds: Fund[];
+  darkMode: boolean;
   timelineMode: 'years' | 'retirement';
-}
-
-const COLOR_STARTING = '#6366f1';
-const COLOR_CONTRIBUTIONS = '#22c55e';
-const COLOR_INTEREST = '#f59e0b';
-
-// Color utilities (shared with ProjectionChart)
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
-}
-
-function mixColor(hex: string, target: string, amount: number): string {
-  const [r1, g1, b1] = hexToRgb(hex);
-  const [r2, g2, b2] = hexToRgb(target);
-  return rgbToHex(r1 + (r2 - r1) * amount, g1 + (g2 - g1) * amount, b1 + (b2 - b1) * amount);
-}
-
-function fundVariants(color: string, darkMode: boolean) {
-  return {
-    starting: mixColor(color, darkMode ? '#0a0a0a' : '#1e293b', 0.55),
-    contributions: color,
-    interest: mixColor(color, darkMode ? '#e5e5e5' : '#ffffff', 0.45),
-  };
 }
 
 type CompView = 'combined' | 'by-fund';
@@ -50,13 +20,12 @@ const COMP_VIEW_LABELS: Record<CompView, string> = {
 export default function CompositionChart({
   schedule,
   funds,
+  darkMode,
   timelineMode,
 }: CompositionChartProps) {
   const [selectedYear, setSelectedYear] = useState(schedule.length);
   const [compView, setCompView] = useState<CompView>('combined');
   const hasManyFunds = funds.length > 1;
-  // Detect dark mode from document
-  const darkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   const clampedYear = Math.min(Math.max(selectedYear, 1), schedule.length);
   const row = schedule[clampedYear - 1];

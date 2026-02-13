@@ -11,7 +11,7 @@ interface FundConfiguratorProps {
   onDelete: () => void;
 }
 
-const ALL_COLORS = FUND_COLORS;
+
 
 export default function FundConfigurator({
   fund,
@@ -65,7 +65,7 @@ export default function FundConfigurator({
       {/* Color picker */}
       {showColors && (
         <div className="px-4 pb-3 flex flex-wrap gap-2">
-          {ALL_COLORS.map((c) => (
+          {FUND_COLORS.map((c) => (
             <button
               key={c}
               className={`color-swatch ${fund.color === c ? 'color-swatch-active' : ''}`}

@@ -3,38 +3,9 @@ import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { formatCompact } from '../utils/calculations';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 
-const COLOR_STARTING = '#6366f1';
-const COLOR_CONTRIBUTIONS = '#22c55e';
-const COLOR_INTEREST = '#f59e0b';
 const TINT = '14'; // ~8% opacity
-
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ];
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return '#' + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
-}
-
-function mixColor(hex: string, target: string, amount: number): string {
-  const [r1, g1, b1] = hexToRgb(hex);
-  const [r2, g2, b2] = hexToRgb(target);
-  return rgbToHex(r1 + (r2 - r1) * amount, g1 + (g2 - g1) * amount, b1 + (b2 - b1) * amount);
-}
-
-function fundVariants(color: string, darkMode: boolean) {
-  return {
-    starting: mixColor(color, darkMode ? '#0a0a0a' : '#1e293b', 0.55),
-    contributions: color,
-    interest: mixColor(color, darkMode ? '#e5e5e5' : '#ffffff', 0.45),
-  };
-}
 
 type TableViewMode = 'combined' | 'by-fund' | 'split';
 const TABLE_VIEW_LABELS: Record<TableViewMode, string> = {
@@ -64,12 +35,13 @@ interface ScheduleTableProps {
   schedule: YearBreakdown[];
   funds: Fund[];
   showReal: boolean;
+  darkMode: boolean;
   timelineMode: 'years' | 'retirement';
   milestones: Milestone[];
   onExport: () => void;
 }
 
-export default function ScheduleTable({ schedule, funds, showReal, timelineMode, milestones, onExport }: ScheduleTableProps) {
+export default function ScheduleTable({ schedule, funds, showReal, darkMode, timelineMode, milestones, onExport }: ScheduleTableProps) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');
@@ -86,7 +58,6 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
 
   const displayRows = expanded ? schedule : schedule.slice(0, 50);
   const hasFunds = funds.length > 1;
-  const darkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   const toggleRow = (year: number) => {
     setExpandedRows((prev) => {
