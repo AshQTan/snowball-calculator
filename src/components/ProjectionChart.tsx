@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -81,6 +81,34 @@ const COLOR_STARTING = '#6366f1'; // indigo
 const COLOR_CONTRIBUTIONS = '#22c55e'; // green
 const COLOR_INTEREST = '#f59e0b'; // amber
 
+// Color utilities for multi-fund bar breakdown
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, '0')).join('');
+}
+
+function mixColor(hex: string, target: string, amount: number): string {
+  const [r1, g1, b1] = hexToRgb(hex);
+  const [r2, g2, b2] = hexToRgb(target);
+  return rgbToHex(r1 + (r2 - r1) * amount, g1 + (g2 - g1) * amount, b1 + (b2 - b1) * amount);
+}
+
+function fundVariants(color: string, darkMode: boolean) {
+  return {
+    starting: mixColor(color, darkMode ? '#0a0a0a' : '#1e293b', 0.55),
+    contributions: color,
+    interest: mixColor(color, darkMode ? '#e5e5e5' : '#ffffff', 0.45),
+  };
+}
+
 export default function ProjectionChart({
   schedule,
   funds,
@@ -97,6 +125,8 @@ export default function ProjectionChart({
   const axisColor = darkMode ? '#262626' : '#e2e8f0';
 
   const chartData = useMemo(() => {
+    const cumFundContrib: Record<string, number> = {};
+    const cumFundInterest: Record<string, number> = {};
     return schedule.map((row) => {
       const balance = showReal ? row.realEndBalance : row.endBalance;
       const label =
@@ -105,17 +135,22 @@ export default function ProjectionChart({
           : `${row.year}`;
 
       if (hasManyFunds) {
-        // stacked by fund: each fund's balance for bar chart
+        // Accumulate per-fund contributions and interest
+        for (const f of funds) {
+          cumFundContrib[f.id] = (cumFundContrib[f.id] || 0) + (row.fundContributions[f.id] || 0);
+          cumFundInterest[f.id] = (cumFundInterest[f.id] || 0) + (row.fundInterest[f.id] || 0);
+        }
         const fundData: Record<string, number> = {};
         for (const f of funds) {
           fundData[`fund_${f.id}`] = row.fundBalances[f.id] || 0;
+          fundData[`fund_${f.id}_starting`] = f.startingBalance;
+          fundData[`fund_${f.id}_contrib`] = cumFundContrib[f.id] || 0;
+          fundData[`fund_${f.id}_interest`] = cumFundInterest[f.id] || 0;
         }
         return {
           label,
           year: row.year,
           balance,
-          contributions: showReal ? row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeContributions,
-          startingBal: row.cumulativeStartingBalance,
           ...fundData,
         };
       } else {
@@ -275,19 +310,20 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} />} />
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} chartMode="bar" />} />
               {hasManyFunds ? (
-                // stacked by fund
-                funds.map((fund) => (
-                  <Bar
-                    key={fund.id}
-                    dataKey={`fund_${fund.id}`}
-                    stackId="stack"
-                    fill={fund.color}
-                    name={fund.name}
-                    radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
-                  />
-                ))
+                // stacked by fund, each split into starting/contributions/interest
+                funds.map((fund, i) => {
+                  const v = fundVariants(fund.color, darkMode);
+                  const isLast = i === funds.length - 1;
+                  return (
+                    <Fragment key={fund.id}>
+                      <Bar dataKey={`fund_${fund.id}_starting`} stackId="stack" fill={v.starting} />
+                      <Bar dataKey={`fund_${fund.id}_contrib`} stackId="stack" fill={v.contributions} />
+                      <Bar dataKey={`fund_${fund.id}_interest`} stackId="stack" fill={v.interest} radius={isLast ? [2, 2, 0, 0] : undefined} />
+                    </Fragment>
+                  );
+                })
               ) : (
                 // stacked by type: starting balance / contributions / interest
                 <>
@@ -326,7 +362,24 @@ export default function ProjectionChart({
             </>
           )
         ) : hasManyFunds ? (
-          funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} type="square" />)
+          <>
+            {funds.map((f) => {
+              const v = fundVariants(f.color, darkMode);
+              return (
+                <div key={f.id} className="flex items-center gap-1.5">
+                  <div className="flex">
+                    <div className="w-2.5 h-2.5 rounded-l-sm" style={{ backgroundColor: v.starting }} />
+                    <div className="w-2.5 h-2.5" style={{ backgroundColor: v.contributions }} />
+                    <div className="w-2.5 h-2.5 rounded-r-sm" style={{ backgroundColor: v.interest }} />
+                  </div>
+                  <span className="text-xs text-slate-400 dark:text-neutral-500">{f.name}</span>
+                </div>
+              );
+            })}
+            <span className="text-[10px] text-slate-400/70 dark:text-neutral-600">
+              dark = starting · mid = contributions · light = interest
+            </span>
+          </>
         ) : (
           <>
             <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
@@ -373,9 +426,10 @@ interface ChartTooltipProps {
   showReal: boolean;
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
+  chartMode?: ChartMode;
 }
 
-function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }: ChartTooltipProps) {
+function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, chartMode }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
@@ -391,17 +445,65 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode }:
           <span className="text-xs font-medium text-slate-900 dark:text-white">{formatCurrency(balance)}</span>
         </div>
         {funds.length > 1 ? (
-          funds.map((f) => (
-            <div key={f.id} className="flex justify-between gap-4">
-              <span className="text-xs flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
-                {f.name}
-              </span>
-              <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
-                {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
-              </span>
-            </div>
-          ))
+          chartMode === 'bar' ? (
+            funds.map((f) => {
+              const v = fundVariants(f.color, darkMode);
+              return (
+                <div key={f.id} className="space-y-0.5">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-xs flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
+                      {f.name}
+                    </span>
+                    <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
+                      {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
+                    </span>
+                  </div>
+                  <div className="ml-3.5 space-y-0.5">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-[10px] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.starting }} />
+                        Starting
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
+                        {formatCurrency(data?.[`fund_${f.id}_starting`] ?? 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-[10px] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.contributions }} />
+                        Contributions
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
+                        {formatCurrency(data?.[`fund_${f.id}_contrib`] ?? 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-[10px] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: v.interest }} />
+                        Interest
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-neutral-400">
+                        {formatCurrency(data?.[`fund_${f.id}_interest`] ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            funds.map((f) => (
+              <div key={f.id} className="flex justify-between gap-4">
+                <span className="text-xs flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
+                  {f.name}
+                </span>
+                <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">
+                  {formatCurrency(data?.[`fund_${f.id}`] ?? 0)}
+                </span>
+              </div>
+            ))
+          )
         ) : (
           <>
             <div className="flex justify-between gap-4">

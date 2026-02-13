@@ -87,18 +87,19 @@ export const MILESTONE_THRESHOLDS = [
 ];
 
 export function createFund(index: number): Fund {
+  const isInitial = index === 0;
   return {
     id: crypto.randomUUID(),
-    name: index === 0 ? 'Portfolio' : `Fund ${index + 1}`,
+    name: isInitial ? 'Portfolio' : `Fund ${index + 1}`,
     color: FUND_COLORS[index % FUND_COLORS.length],
     startingBalance: 0,
-    contribution: 100,
+    contribution: isInitial ? 100 : 0,
     contributionType: 'fixed',
     contributionFrequency: 'monthly',
     contributionGrowthRate: 0,
     contributionGrowthType: 'fixed',
     contributionGrowthInterval: 1,
-    returnRate: 7,
+    returnRate: isInitial ? 7 : 0,
   };
 }
 
