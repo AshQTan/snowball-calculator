@@ -124,7 +124,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
               prefix="$"
             />
           </div>
-          <div>
+          <div className="group/ig relative">
             <label className="input-label">Income Growth</label>
             <div className="relative">
               <input
@@ -138,6 +138,9 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
               />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
               </div>
+            <div className="absolute bottom-full left-0 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover/ig:opacity-100 transition-opacity z-50 shadow-xl text-left">
+              Annual percentage your income is expected to grow. This affects percent-of-income contributions, increasing them each year in line with your salary.
+            </div>
           </div>
         </div>
         <p className="text-xs text-slate-400 dark:text-neutral-600 mt-1">Used when fund contribution is set as % of income</p>
