@@ -62,7 +62,7 @@ function ChevronStack({ count }: { count: number }) {
         <polyline
           key={i}
           points={`2,${h - i * 5 - 2} 7,${h - i * 5 - 7} 12,${h - i * 5 - 2}`}
-          stroke="#fbbf24"
+          stroke="#7dd3fc"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -82,7 +82,7 @@ export function MilestoneBadge({ milestone, chevronCount, onClick }: { milestone
       onClick={isClickable ? onClick : undefined}
       onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
       className={`flex items-center gap-1.5 bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700/50 rounded-lg px-2.5 py-1.5 ${
-        isClickable ? 'cursor-pointer hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors' : ''
+        isClickable ? 'cursor-pointer hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors' : ''
       }`}
     >
       {milestone.icon ? (

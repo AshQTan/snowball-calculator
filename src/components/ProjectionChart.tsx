@@ -49,7 +49,7 @@ function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: numbe
         <polyline
           key={i}
           points={`${cx - 5},${startY + i * spacing + 4} ${cx},${startY + i * spacing} ${cx + 5},${startY + i * spacing + 4}`}
-          stroke="#fbbf24"
+          stroke="#7dd3fc"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -70,7 +70,7 @@ function LegendChevrons({ count }: { count: number }) {
         <polyline
           key={i}
           points={`1,${h - i * 5 - 1} 6,${h - i * 5 - 5} 11,${h - i * 5 - 1}`}
-          stroke="#fbbf24"
+          stroke="#7dd3fc"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -358,8 +358,8 @@ export default function ProjectionChart({
                   x={m.xLabel}
                   y={m.balance}
                   r={4}
-                  fill="#fbbf24"
-                  stroke="#fbbf24"
+                  fill="#7dd3fc"
+                  stroke="#7dd3fc"
                   strokeWidth={0}
                 >
                   <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} />} />

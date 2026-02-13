@@ -56,7 +56,7 @@ function MilestoneTag({ milestone }: { milestone: Milestone }) {
     );
   }
   return (
-    <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70">{milestone.label}</span>
+    <span className="text-[10px] text-sky-600/70 dark:text-sky-400/70">{milestone.label}</span>
   );
 }
 
@@ -75,8 +75,12 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');
 
   const milestoneYears = useMemo(() => {
-    const map = new Map<number, Milestone>();
-    for (const m of milestones) map.set(m.year, m);
+    const map = new Map<number, Milestone[]>();
+    for (const m of milestones) {
+      const arr = map.get(m.year) || [];
+      arr.push(m);
+      map.set(m.year, arr);
+    }
     return map;
   }, [milestones]);
 
@@ -129,21 +133,21 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
         </div>
       </div>
 
-      <div className="overflow-x-auto -mx-5 px-5">
+      <div className="overflow-x-auto -mx-5">
         {(!hasFunds || viewMode === 'combined') ? (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-neutral-800">
-              {hasFunds && <th className="w-8" />}
-              <th className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3">
+              {hasFunds && <th className="w-8 pl-5" />}
+              <th className={`text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 ${!hasFunds ? 'pl-5' : ''}`}>
                 {timelineMode === 'retirement' ? 'Age' : 'Year'}
               </th>
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>Start</th>
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>Contribution</th>
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>Interest</th>
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">End Balance</th>
+              <th className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 ${!showReal ? 'pr-5' : ''}`}>End Balance</th>
               {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5">
                   <div className="relative group/tip inline-flex items-center gap-1 cursor-help">
                     <span>Adjusted Balance</span>
                     <div className="absolute bottom-full right-0 mb-2 w-52 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed normal-case tracking-normal font-normal opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity z-50 shadow-xl text-left">
@@ -163,30 +167,30 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   key={row.year}
                   className={`border-b transition-colors ${hasFunds ? 'cursor-pointer' : ''} ${
                     isMilestone
-                      ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
                       : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                   }`}
                   onClick={() => hasFunds && toggleRow(row.year)}
                 >
                   {hasFunds && (
-                    <td className="py-2">
+                    <td className="py-2 pl-5">
                       {isExp ? <ChevronUp className="w-3 h-3 text-slate-300 dark:text-neutral-600" /> : <ChevronDown className="w-3 h-3 text-slate-300 dark:text-neutral-600" />}
                     </td>
                   )}
-                  <td className="py-2 pr-3 font-medium">
+                  <td className={`py-2 pr-3 font-medium ${!hasFunds ? 'pl-5' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                         {timelineMode === 'retirement' && row.age ? row.age : row.year}
                       </span>
-                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
                     </div>
                   </td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>{formatCurrency(row.totalContribution)}</td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>{formatCurrency(row.totalInterest)}</td>
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                  <td className={`py-2 pl-3 pr-5 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>,
               ];
@@ -194,7 +198,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                 for (const fund of funds) {
                   rows.push(
                     <tr key={`${row.year}-${fund.id}`} className="bg-slate-50 dark:bg-neutral-800/20">
-                      <td />
+                      <td className="pl-5" />
                       <td className="py-1.5 pr-3">
                         <div className="flex items-center gap-1.5 pl-2">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: fund.color }} />
@@ -204,8 +208,8 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                       <td />
                       <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
                       <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                      <td className="py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
-                      {showReal && <td />}
+                      <td className={`py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                      {showReal && <td className="pr-5" />}
                     </tr>
                   );
                 }
@@ -218,7 +222,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-neutral-800">
-              <th className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3">
+              <th className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5">
                 {timelineMode === 'retirement' ? 'Age' : 'Year'}
               </th>
               {funds.map((fund) => (
@@ -226,9 +230,9 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   {fund.name}
                 </th>
               ))}
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Total</th>
+              <th className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 ${!showReal ? 'pr-5' : ''}`}>Total</th>
               {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Adjusted</th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5">Adjusted</th>
               )}
             </tr>
           </thead>
@@ -240,16 +244,16 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   key={row.year}
                   className={`border-b transition-colors ${
                     isMilestone
-                      ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
                       : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                   }`}
                 >
-                  <td className="py-2 pr-3 font-medium">
+                  <td className="py-2 pr-3 pl-5 font-medium">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                         {timelineMode === 'retirement' && row.age ? row.age : row.year}
                       </span>
-                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
                     </div>
                   </td>
                   {funds.map((fund) => (
@@ -257,9 +261,9 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                       {formatCurrency(row.fundBalances[fund.id] || 0)}
                     </td>
                   ))}
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                  <td className={`py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>
               );
@@ -270,7 +274,7 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-neutral-800">
-              <th rowSpan={2} className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 align-bottom">
+              <th rowSpan={2} className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5 align-bottom">
                 {timelineMode === 'retirement' ? 'Age' : 'Year'}
               </th>
               {funds.map((fund) => (
@@ -278,9 +282,9 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   {fund.name}
                 </th>
               ))}
-              <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Total</th>
+              <th rowSpan={2} className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom ${!showReal ? 'pr-5' : ''}`}>Total</th>
               {showReal && (
-                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Adjusted</th>
+                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5 align-bottom">Adjusted</th>
               )}
             </tr>
             <tr className="border-b border-slate-200 dark:border-neutral-800">
@@ -304,16 +308,16 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   key={row.year}
                   className={`border-b transition-colors ${
                     isMilestone
-                      ? 'border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
                       : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                   }`}
                 >
-                  <td className="py-2 pr-3 font-medium">
+                  <td className="py-2 pr-3 pl-5 font-medium">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                         {timelineMode === 'retirement' && row.age ? row.age : row.year}
                       </span>
-                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
                     </div>
                   </td>
                   {funds.map((fund) => {
@@ -326,9 +330,9 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                     </React.Fragment>
                     );
                   })}
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                  <td className={`py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
                 </tr>
               );

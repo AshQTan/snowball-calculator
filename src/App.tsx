@@ -130,11 +130,11 @@ export default function App() {
                 onClick={() => setShowMilestones(!showMilestones)}
                 className={`btn-ghost text-xs transition-colors ${
                   showMilestones
-                    ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+                    ? 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30'
                     : 'text-slate-400 dark:text-neutral-500'
                 }`}
               >
-                <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showMilestones ? 'bg-amber-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
+                <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showMilestones ? 'bg-sky-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
                 Milestones {showMilestones ? 'On' : 'Off'}
               </button>
               <button
