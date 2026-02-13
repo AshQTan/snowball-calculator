@@ -57,12 +57,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-neutral-950 transition-colors duration-500">
-      <Header onShare={handleShare} onExport={handleExport} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
+      <Header onShare={handleShare} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
 
       <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
           {/* Left: Settings */}
-          <div className="space-y-4 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-[76px]">
+          <div className="space-y-4 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2 lg:sticky lg:top-[76px]">
             <GlobalSettingsPanel settings={state.global} onChange={updateGlobal} />
             <FundsPanel funds={state.funds} showIncomeOption={showIncomeOption} onChange={updateFunds} />
           </div>
@@ -91,6 +91,7 @@ export default function App() {
               showReal={state.global.showReal}
               timelineMode={state.global.timelineMode}
               milestones={result.milestones}
+              onExport={handleExport}
             />
           </div>
         </div>

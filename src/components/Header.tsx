@@ -1,13 +1,12 @@
-import { TrendingUp, Share2, Download, Moon, Sun } from 'lucide-react';
+import { TrendingUp, Share2, Moon, Sun } from 'lucide-react';
 
 interface HeaderProps {
   onShare: () => void;
-  onExport: () => void;
   darkMode: boolean;
   onToggleDark: () => void;
 }
 
-export default function Header({ onShare, onExport, darkMode, onToggleDark }: HeaderProps) {
+export default function Header({ onShare, darkMode, onToggleDark }: HeaderProps) {
   return (
     <header className="border-b border-slate-200/80 dark:border-neutral-800/50 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
@@ -27,10 +26,6 @@ export default function Header({ onShare, onExport, darkMode, onToggleDark }: He
           <button onClick={onShare} className="btn-ghost" title="Copy shareable link">
             <Share2 className="w-4 h-4" />
             <span className="hidden sm:inline">Share</span>
-          </button>
-          <button onClick={onExport} className="btn-ghost" title="Export as CSV">
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>

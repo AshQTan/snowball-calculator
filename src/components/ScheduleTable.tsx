@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone } from '../types';
 import { formatCurrency } from '../utils/formatters';
 
@@ -48,9 +48,10 @@ interface ScheduleTableProps {
   showReal: boolean;
   timelineMode: 'years' | 'retirement';
   milestones: Milestone[];
+  onExport: () => void;
 }
 
-export default function ScheduleTable({ schedule, funds, showReal, timelineMode, milestones }: ScheduleTableProps) {
+export default function ScheduleTable({ schedule, funds, showReal, timelineMode, milestones, onExport }: ScheduleTableProps) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');
@@ -80,29 +81,34 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
         <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
           Accumulation Schedule
         </h2>
-        {hasFunds && (
-          <div className="relative group">
-            <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
-              {TABLE_VIEW_LABELS[viewMode]}
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[120px]">
-              {(['combined', 'by-fund', 'split'] as TableViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                    viewMode === mode
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                      : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
-                  }`}
-                  onClick={() => setViewMode(mode)}
-                >
-                  {TABLE_VIEW_LABELS[mode]}
-                </button>
-              ))}
+        <div className="flex items-center gap-2">
+          {hasFunds && (
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
+                {TABLE_VIEW_LABELS[viewMode]}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[120px]">
+                {(['combined', 'by-fund', 'split'] as TableViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                      viewMode === mode
+                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
+                    }`}
+                    onClick={() => setViewMode(mode)}
+                  >
+                    {TABLE_VIEW_LABELS[mode]}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <button onClick={onExport} className="btn-ghost" title="Export as CSV">
+            <Download className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto -mx-5 px-5">
