@@ -165,9 +165,12 @@ export default function ProjectionChart({
   }, [schedule, funds, showReal, inflationRate, timelineMode, hasManyFunds]);
 
   const milestoneData = useMemo(() => {
+    // In multi-fund split/by-fund views, stacked values are nominal,
+    // so milestone dots must use nominal balance to align with stack top.
+    const useNominal = hasManyFunds && stackView !== 'by-type';
     return milestones.map((m, i) => {
       const row = schedule.find((s) => s.year === m.year);
-      const balance = showReal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
+      const balance = (showReal && !useNominal) ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
       // Must match chartData label format exactly
       const xLabel =
         timelineMode === 'retirement' && row?.age
@@ -181,7 +184,7 @@ export default function ProjectionChart({
         label: `${m.label}`,
       };
     });
-  }, [milestones, schedule, showReal, timelineMode]);
+  }, [milestones, schedule, showReal, timelineMode, hasManyFunds, stackView]);
 
   // Compute a tick interval that shows ~10-15 labels max
   const tickInterval = useMemo(() => {
