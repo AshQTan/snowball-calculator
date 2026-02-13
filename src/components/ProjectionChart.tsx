@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -12,7 +12,7 @@ import {
   ReferenceDot,
   Label,
 } from 'recharts';
-import { BarChart3, LineChart } from 'lucide-react';
+import { BarChart3, LineChart, ChevronDown } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone, ChartMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
 
@@ -109,6 +109,13 @@ function fundVariants(color: string, darkMode: boolean) {
   };
 }
 
+type BarViewMode = 'split' | 'by-fund' | 'by-type';
+const BAR_VIEW_LABELS: Record<BarViewMode, string> = {
+  'split': 'Fund × Type',
+  'by-fund': 'By Fund',
+  'by-type': 'By Type',
+};
+
 export default function ProjectionChart({
   schedule,
   funds,
@@ -120,6 +127,7 @@ export default function ProjectionChart({
   onChartModeChange,
 }: ProjectionChartProps) {
   const hasManyFunds = funds.length > 1;
+  const [barView, setBarView] = useState<BarViewMode>('split');
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
   const tickColor = darkMode ? '#737373' : '#64748b';
   const axisColor = darkMode ? '#262626' : '#e2e8f0';
@@ -151,6 +159,9 @@ export default function ProjectionChart({
           label,
           year: row.year,
           balance,
+          startingBal: row.cumulativeStartingBalance,
+          contributions: showReal ? row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeContributions,
+          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1.03, row.year) : row.cumulativeInterest,
           ...fundData,
         };
       } else {
@@ -204,6 +215,29 @@ export default function ProjectionChart({
             <span className="text-[10px] text-red-500 dark:text-red-400/80 bg-red-100 dark:bg-red-900/20 px-2 py-0.5 rounded-md">
               Inflation-adjusted
             </span>
+          )}
+          {chartMode === 'bar' && hasManyFunds && (
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
+                {BAR_VIEW_LABELS[barView]}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[120px]">
+                {(['split', 'by-fund', 'by-type'] as BarViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                      barView === mode
+                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
+                    }`}
+                    onClick={() => setBarView(mode)}
+                  >
+                    {BAR_VIEW_LABELS[mode]}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
@@ -310,8 +344,8 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} chartMode="bar" />} />
-              {hasManyFunds ? (
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? barView : undefined} />} />
+              {hasManyFunds && barView === 'split' ? (
                 // stacked by fund, each split into starting/contributions/interest
                 funds.map((fund, i) => {
                   const v = fundVariants(fund.color, darkMode);
@@ -324,6 +358,18 @@ export default function ProjectionChart({
                     </Fragment>
                   );
                 })
+              ) : hasManyFunds && barView === 'by-fund' ? (
+                // stacked by fund (solid colors)
+                funds.map((fund) => (
+                  <Bar
+                    key={fund.id}
+                    dataKey={`fund_${fund.id}`}
+                    stackId="stack"
+                    fill={fund.color}
+                    name={fund.name}
+                    radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
+                  />
+                ))
               ) : (
                 // stacked by type: starting balance / contributions / interest
                 <>
@@ -361,7 +407,7 @@ export default function ProjectionChart({
               <LegendItem color={COLOR_INTEREST} label="Interest" />
             </>
           )
-        ) : hasManyFunds ? (
+        ) : hasManyFunds && barView === 'split' ? (
           <>
             {funds.map((f) => {
               const v = fundVariants(f.color, darkMode);
@@ -380,6 +426,8 @@ export default function ProjectionChart({
               dark = starting · mid = contributions · light = interest
             </span>
           </>
+        ) : hasManyFunds && barView === 'by-fund' ? (
+          funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} type="square" />)
         ) : (
           <>
             <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
@@ -426,10 +474,10 @@ interface ChartTooltipProps {
   showReal: boolean;
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
-  chartMode?: ChartMode;
+  barView?: BarViewMode;
 }
 
-function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, chartMode }: ChartTooltipProps) {
+function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
@@ -445,7 +493,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
           <span className="text-xs font-medium text-slate-900 dark:text-white">{formatCurrency(balance)}</span>
         </div>
         {funds.length > 1 ? (
-          chartMode === 'bar' ? (
+          barView === 'split' ? (
             funds.map((f) => {
               const v = fundVariants(f.color, darkMode);
               return (
@@ -491,7 +539,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
                 </div>
               );
             })
-          ) : (
+          ) : barView === 'by-fund' ? (
             funds.map((f) => (
               <div key={f.id} className="flex justify-between gap-4">
                 <span className="text-xs flex items-center gap-1">
@@ -503,6 +551,22 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
                 </span>
               </div>
             ))
+          ) : (
+            // by-type: show aggregated starting / contributions / interest
+            <>
+              <div className="flex justify-between gap-4">
+                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
+                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.startingBal ?? 0)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
+                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.contributions ?? 0)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
+                <span className="text-xs text-slate-600 dark:text-neutral-300">{formatCurrency(data?.interest ?? 0)}</span>
+              </div>
+            </>
           )
         ) : (
           <>
