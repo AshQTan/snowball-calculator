@@ -16,7 +16,7 @@ export function formatCurrencyCompact(value: number): string {
 }
 
 export function formatPercent(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+  return `${value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
 }
 
 export function formatYears(value: number): string {

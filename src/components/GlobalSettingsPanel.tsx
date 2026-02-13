@@ -14,11 +14,16 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
       </h2>
 
       {/* Time Horizon + Inflation */}
-      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
-        {/* Time Horizon */}
-        <div>
+      <div>
+        <div className="grid grid-cols-[1fr_auto] gap-4 items-end">
+          {/* Time Horizon Label */}
           <label className="input-label">Time Horizon</label>
-          <div className="flex gap-2 mb-3">
+          {/* Inflation Label */}
+          <label className="input-label text-right w-28">Inflation</label>
+        </div>
+        <div className="grid grid-cols-[1fr_auto] gap-4 mb-3">
+          {/* Time Horizon Buttons */}
+          <div className="flex gap-2">
             <button
               className={`flex-1 toggle-btn ${settings.timelineMode === 'years' ? 'toggle-btn-active' : 'toggle-btn-inactive'}`}
               onClick={() => onChange({ timelineMode: 'years' as TimelineMode })}
@@ -33,6 +38,23 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
             </button>
           </div>
 
+          {/* Inflation Toggle */}
+          <div className="w-28 flex">
+            <button
+              className={`w-full toggle-btn ${settings.showReal ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/40' : 'toggle-btn-inactive'} group relative`}
+              onClick={() => onChange({ showReal: !settings.showReal })}
+            >
+              {settings.showReal ? 'On' : 'Off'}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
+                Enable to adjust all values for inflation, showing amounts in today's purchasing power.
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+          {/* Time Horizon Inputs */}
+          <div>
           {settings.timelineMode === 'years' ? (
             <div>
               <input
@@ -78,22 +100,10 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
               </div>
             </div>
           )}
-        </div>
-
-        {/* Inflation */}
-        <div className="w-28 flex flex-col">
-          <label className="input-label text-right w-full">Inflation</label>
-          <div className="flex items-center h-[30px] mb-3">
-            <button
-              className={`w-full toggle-btn ${settings.showReal ? 'bg-orange-100 text-orange-700 border border-orange-300 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/40' : 'toggle-btn-inactive'} group relative`}
-              onClick={() => onChange({ showReal: !settings.showReal })}
-            >
-              {settings.showReal ? 'On' : 'Off'}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
-                Enable to adjust all values for inflation, showing amounts in today's purchasing power.
-              </div>
-            </button>
           </div>
+
+          {/* Inflation Rate Input */}
+          <div className="w-28">
           {settings.showReal && (
             <div className="relative w-full">
               <input
@@ -108,6 +118,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
             </div>
           )}
+          </div>
         </div>
       </div>
 

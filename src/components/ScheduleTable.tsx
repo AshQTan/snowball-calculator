@@ -1,11 +1,60 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatPercent } from '../utils/formatters';
 import { formatCompact } from '../utils/calculations';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 
 const TINT = '14'; // ~8% opacity
+
+function HeaderTooltip({ text, children }: { text: React.ReactNode; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0, below: false });
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const handleEnter = useCallback(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const below = spaceAbove < 120;
+      setPos({
+        x: rect.right,
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        below,
+      });
+      setShow(true);
+    }
+  }, []);
+
+  return (
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setShow(false)}
+        className="cursor-help"
+      >
+        {children}
+      </span>
+      {show && createPortal(
+        <div
+          className="fixed z-[9999] w-52 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed shadow-xl text-left font-normal normal-case tracking-normal pointer-events-none"
+          style={{ top: pos.y, left: pos.x - 208, transform: pos.below ? undefined : 'translateY(-100%)' }}
+        >
+          {text}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+type GrowthMode = 'starting' | 'invested';
+const GROWTH_LABELS: Record<GrowthMode, string> = {
+  starting: '% Growth/Starting',
+  invested: '% Growth/Invested',
+};
 
 type TableViewMode = 'combined' | 'by-fund' | 'split';
 const TABLE_VIEW_LABELS: Record<TableViewMode, string> = {
@@ -45,6 +94,7 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
   const [expanded, setExpanded] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');
+  const [growthMode, setGrowthMode] = useState<GrowthMode>('starting');
 
   const milestoneYears = useMemo(() => {
     const map = new Map<number, Milestone[]>();
@@ -58,6 +108,42 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
 
   const displayRows = expanded ? schedule : schedule.slice(0, 50);
   const hasFunds = funds.length > 1;
+  const initialBalance = schedule[0]?.startBalance ?? 0;
+
+  // Precompute cumulative per-fund contributions for "vs invested" growth mode
+  const cumulativeFundContribs = useMemo(() => {
+    const result: Record<string, number>[] = [];
+    const running: Record<string, number> = {};
+    for (const fund of funds) running[fund.id] = 0;
+    for (const row of schedule) {
+      for (const fund of funds) {
+        running[fund.id] = (running[fund.id] || 0) + (row.fundContributions[fund.id] || 0);
+      }
+      result.push({ ...running });
+    }
+    return result;
+  }, [schedule, funds]);
+
+  const getGrowthPct = (row: YearBreakdown) => {
+    const endBal = showReal ? row.realEndBalance : row.endBalance;
+    if (growthMode === 'starting') {
+      return initialBalance > 0 ? (endBal / initialBalance - 1) * 100 : null;
+    }
+    const invested = row.cumulativeStartingBalance + row.cumulativeContributions;
+    return invested > 0 ? (endBal / invested - 1) * 100 : null;
+  };
+
+  const getFundGrowthPct = (fundBalance: number, fund: Fund, row: YearBreakdown) => {
+    // Derive inflation factor from the row's nominal vs real balance
+    const inflationFactor = row.endBalance > 0 && row.realEndBalance > 0 ? row.endBalance / row.realEndBalance : 1;
+    const bal = showReal ? fundBalance / inflationFactor : fundBalance;
+    if (growthMode === 'starting') {
+      return fund.startingBalance > 0 ? (bal / fund.startingBalance - 1) * 100 : null;
+    }
+    const cumContrib = cumulativeFundContribs[row.year]?.[fund.id] || 0;
+    const invested = fund.startingBalance + cumContrib;
+    return invested > 0 ? (bal / invested - 1) * 100 : null;
+  };
 
   const toggleRow = (year: number) => {
     setExpandedRows((prev) => {
@@ -98,6 +184,27 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
               </div>
             </div>
           )}
+          <div className="relative group/gm">
+            <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
+              {GROWTH_LABELS[growthMode]}
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover/gm:opacity-100 group-hover/gm:visible transition-all z-20 min-w-[120px]">
+              {(['starting', 'invested'] as GrowthMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                    growthMode === mode
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
+                  }`}
+                  onClick={() => setGrowthMode(mode)}
+                >
+                  {GROWTH_LABELS[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
           <button onClick={onExport} className="btn-ghost" title="Export as CSV">
             <Download className="w-4 h-4" />
           </button>
@@ -116,17 +223,19 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>Start</th>
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>Contribution</th>
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>Interest</th>
-              <th className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 ${!showReal ? 'pr-5' : ''}`}>End Balance</th>
+              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">End Balance</th>
               {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5">
-                  <div className="relative group/tip inline-flex items-center gap-1 cursor-help">
-                    <span>Adjusted Balance</span>
-                    <div className="absolute bottom-full right-0 mb-2 w-52 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed normal-case tracking-normal font-normal opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity z-50 shadow-xl text-left">
-                      End balance adjusted for inflation, expressed in today's purchasing power.
-                    </div>
-                  </div>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">
+                  <HeaderTooltip text="End balance adjusted for inflation, expressed in today's purchasing power.">
+                    Adjusted Balance
+                  </HeaderTooltip>
                 </th>
               )}
+              <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
+                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                  % Growth
+                </HeaderTooltip>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -159,10 +268,13 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>{formatCurrency(row.totalContribution)}</td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>{formatCurrency(row.totalInterest)}</td>
-                  <td className={`py-2 pl-3 pr-5 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
+                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
+                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                  </td>
                 </tr>,
               ];
               if (hasFunds && isExp) {
@@ -179,8 +291,9 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                       <td />
                       <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
                       <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                      <td className={`py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
-                      {showReal && <td className="pr-5" />}
+                      <td className="py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                      {showReal && <td />}
+                      <td className="pr-5" />
                     </tr>
                   );
                 }
@@ -197,14 +310,24 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                 {timelineMode === 'retirement' ? 'Age' : 'Year'}
               </th>
               {funds.map((fund) => (
-                <th key={fund.id} className="text-right text-xs font-medium uppercase py-2 px-3" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
-                  {fund.name}
-                </th>
+                <React.Fragment key={fund.id}>
+                  <th className="text-right text-xs font-medium uppercase py-2 px-3" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
+                    {fund.name}
+                  </th>
+                  <th className="text-right text-xs font-medium uppercase py-2 px-2" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
+                    % Growth
+                  </th>
+                </React.Fragment>
               ))}
-              <th className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 ${!showReal ? 'pr-5' : ''}`}>Total</th>
+              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Total</th>
               {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5">Adjusted</th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Adjusted</th>
               )}
+              <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
+                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                  % Growth
+                </HeaderTooltip>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -228,14 +351,22 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                     </div>
                   </td>
                   {funds.map((fund) => (
-                    <td key={fund.id} className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
-                      {formatCurrency(row.fundBalances[fund.id] || 0)}
-                    </td>
+                    <React.Fragment key={fund.id}>
+                      <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
+                        {formatCurrency(row.fundBalances[fund.id] || 0)}
+                      </td>
+                      <td className="py-2 px-2 text-right text-xs tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}`, color: fund.color }}>
+                        {(() => { const pct = getFundGrowthPct(row.fundBalances[fund.id] || 0, fund, row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                      </td>
+                    </React.Fragment>
                   ))}
-                  <td className={`py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
+                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
+                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                  </td>
                 </tr>
               );
             })}
@@ -253,10 +384,15 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   {fund.name}
                 </th>
               ))}
-              <th rowSpan={2} className={`text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom ${!showReal ? 'pr-5' : ''}`}>Total</th>
+              <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Total</th>
               {showReal && (
-                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 pr-5 align-bottom">Adjusted</th>
+                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Adjusted</th>
               )}
+              <th rowSpan={2} className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5 align-bottom" style={{ color: COLOR_INTEREST }}>
+                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                  % Growth
+                </HeaderTooltip>
+              </th>
             </tr>
             <tr className="border-b border-slate-200 dark:border-neutral-800">
               {funds.map((fund) => {
@@ -301,10 +437,13 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                     </React.Fragment>
                     );
                   })}
-                  <td className={`py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums ${!showReal ? 'pr-5' : ''}`}>{formatCurrency(row.endBalance)}</td>
+                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
-                    <td className="py-2 pl-3 pr-5 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
                   )}
+                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                  </td>
                 </tr>
               );
             })}

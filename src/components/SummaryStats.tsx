@@ -1,6 +1,52 @@
+import { useCallback, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ProjectionResult, Milestone } from '../types';
 import { formatCurrency, formatPercent, formatYears } from '../utils/formatters';
 import { formatCompact } from '../utils/calculations';
+
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0, below: false });
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleEnter = useCallback(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const below = spaceAbove < 120;
+      setPos({
+        x: rect.left + rect.width / 2,
+        y: below ? rect.bottom + 8 : rect.top - 8,
+        below,
+      });
+      setShow(true);
+    }
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+      className="stat-card items-center text-center cursor-help"
+    >
+      {children}
+      {show && createPortal(
+        <div
+          className="fixed z-[9999] w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed shadow-xl text-left font-normal normal-case tracking-normal pointer-events-none"
+          style={{
+            top: pos.y,
+            left: pos.x,
+            transform: pos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+          }}
+        >
+          {text}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 interface SummaryStatsProps {
   result: ProjectionResult;
@@ -20,7 +66,7 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayBalance)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
-          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/70">in today's dollars</span>}
+          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">in today's dollars</span>}
         </div>
         <div className="stat-card items-center text-center">
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
@@ -32,14 +78,11 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
         </div>
-        <div className="stat-card items-center text-center group relative">
+        <Tooltip text="CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.">
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(effectiveCAGR)} CAGR</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(doublingTimeYears)}</span>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left">
-            CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.
-          </div>
-        </div>
+        </Tooltip>
       </div>
 
       {/* Warnings */}
