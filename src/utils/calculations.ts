@@ -190,9 +190,14 @@ export function computeProjection(state: AppState): ProjectionResult {
     totalInvested > 0 && totalYears > 0
       ? (Math.pow(finalBalance / Math.max(totalInvested, 1), 1 / totalYears) - 1) * 100
       : 0;
+  const realCAGR =
+    totalInvested > 0 && totalYears > 0
+      ? (Math.pow(finalRealBalance / Math.max(totalInvested, 1), 1 / totalYears) - 1) * 100
+      : 0;
 
   const weightedReturn = funds.reduce((s, f) => s + f.returnRate, 0) / (funds.length || 1);
   const doublingTimeYears = weightedReturn > 0 ? 72 / weightedReturn : Infinity;
+  const realDoublingTimeYears = (weightedReturn - g.inflationRate) > 0 ? 72 / (weightedReturn - g.inflationRate) : Infinity;
 
   return {
     schedule,
@@ -202,7 +207,9 @@ export function computeProjection(state: AppState): ProjectionResult {
     finalBalance,
     finalRealBalance,
     effectiveCAGR,
+    realCAGR,
     doublingTimeYears,
+    realDoublingTimeYears,
     milestones,
     contributionExceedsIncomeYear,
   };

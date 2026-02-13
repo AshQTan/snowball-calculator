@@ -61,7 +61,9 @@ export interface ProjectionResult {
   finalBalance: number;
   finalRealBalance: number;
   effectiveCAGR: number;
+  realCAGR: number;
   doublingTimeYears: number;
+  realDoublingTimeYears: number;
   milestones: Milestone[];
   contributionExceedsIncomeYear: number | null;
 }

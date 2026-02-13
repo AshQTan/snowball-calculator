@@ -53,7 +53,7 @@ interface SummaryStatsProps {
 }
 
 export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
-  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, doublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
+  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
 
@@ -77,10 +77,11 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
         </div>
-        <Tooltip text="CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.">
+        <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(effectiveCAGR)} CAGR</span>
-          <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(doublingTimeYears)}</span>
+          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(showReal ? realCAGR : effectiveCAGR)} CAGR</span>
+          <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(showReal ? realDoublingTimeYears : doublingTimeYears)}</span>
+          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">real return</span>}
         </Tooltip>
       </div>
 
