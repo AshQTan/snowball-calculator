@@ -27,7 +27,7 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + ${totalContributed.toLocaleString()} contrib.</span>
         </div>
         <div className="stat-card items-center text-center">
-          <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
+          <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
         </div>
