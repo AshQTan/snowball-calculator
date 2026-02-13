@@ -1,14 +1,13 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone } from '../types';
-import { formatCurrency, formatPercent } from '../utils/formatters';
-import { formatCompact } from '../utils/calculations';
+import { formatCurrency, formatCompact, formatPercent } from '../utils/formatters';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 
 const TINT = '14'; // ~8% opacity
 
-function HeaderTooltip({ text, children }: { text: React.ReactNode; children: React.ReactNode }) {
+function HeaderTooltip({ text, children }: { text: ReactNode; children: ReactNode }) {
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0, below: false });
   const ref = useRef<HTMLSpanElement>(null);
@@ -310,14 +309,14 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                 {timelineMode === 'retirement' ? 'Age' : 'Year'}
               </th>
               {funds.map((fund) => (
-                <React.Fragment key={fund.id}>
+                <Fragment key={fund.id}>
                   <th className="text-right text-xs font-medium uppercase py-2 px-3" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
                     {fund.name}
                   </th>
                   <th className="text-right text-xs font-medium uppercase py-2 px-2" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
                     % Growth
                   </th>
-                </React.Fragment>
+                </Fragment>
               ))}
               <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Total</th>
               {showReal && (
@@ -351,14 +350,14 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                     </div>
                   </td>
                   {funds.map((fund) => (
-                    <React.Fragment key={fund.id}>
+                    <Fragment key={fund.id}>
                       <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
                         {formatCurrency(row.fundBalances[fund.id] || 0)}
                       </td>
                       <td className="py-2 px-2 text-right text-xs tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}`, color: fund.color }}>
                         {(() => { const pct = getFundGrowthPct(row.fundBalances[fund.id] || 0, fund, row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
                       </td>
-                    </React.Fragment>
+                    </Fragment>
                   ))}
                   <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
                   {showReal && (
@@ -398,11 +397,11 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
               {funds.map((fund) => {
                 const v = fundVariants(fund.color, darkMode);
                 return (
-                <React.Fragment key={fund.id}>
+                <Fragment key={fund.id}>
                   <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.starting}${TINT}` }}>Contrib</th>
                   <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.contributions}${TINT}` }}>Interest</th>
                   <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.interest}${TINT}` }}>Balance</th>
-                </React.Fragment>
+                </Fragment>
                 );
               })}
             </tr>
@@ -430,11 +429,11 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   {funds.map((fund) => {
                     const v = fundVariants(fund.color, darkMode);
                     return (
-                    <React.Fragment key={fund.id}>
+                    <Fragment key={fund.id}>
                       <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.starting}${TINT}` }}>{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
                       <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.contributions}${TINT}` }}>{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
                       <td className="py-2 px-2 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${v.interest}${TINT}` }}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
-                    </React.Fragment>
+                    </Fragment>
                     );
                   })}
                   <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>

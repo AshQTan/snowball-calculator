@@ -24,3 +24,10 @@ export function formatYears(value: number): string {
   if (value < 1) return `${(value * 12).toFixed(0)} months`;
   return `${value.toFixed(1)} years`;
 }
+
+export function formatCompact(value: number): string {
+  if (value >= 10_000_000) return `$${(value / 1_000_000).toFixed(0)}M`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value}`;
+}

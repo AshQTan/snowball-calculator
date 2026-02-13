@@ -11,8 +11,6 @@ interface FundConfiguratorProps {
   onDelete: () => void;
 }
 
-
-
 export default function FundConfigurator({
   fund,
   canDelete,

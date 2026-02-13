@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, MILESTONE_ICONS, getDefaultState } from './types';
-import { computeProjection, formatCompact } from './utils/calculations';
+import { computeProjection } from './utils/calculations';
+import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
 import Header from './components/Header';
 import GlobalSettingsPanel from './components/GlobalSettingsPanel';
@@ -45,6 +46,9 @@ export default function App() {
     navigator.clipboard.writeText(url).then(() => {
       window.history.replaceState({}, '', url);
       setShareToast(true);
+    }).catch(() => {
+      // Fallback: still update URL even if clipboard fails
+      window.history.replaceState({}, '', url);
     });
   }, [state]);
 

@@ -5,6 +5,7 @@ import {
   Milestone,
   MILESTONE_THRESHOLDS,
 } from '../types';
+import { formatCompact } from './formatters';
 
 export function computeProjection(state: AppState): ProjectionResult {
   const { global: g, funds, customMilestones = [] } = state;
@@ -207,9 +208,4 @@ export function computeProjection(state: AppState): ProjectionResult {
   };
 }
 
-export function formatCompact(value: number): string {
-  if (value >= 10_000_000) return `$${(value / 1_000_000).toFixed(0)}M`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value}`;
-}
+

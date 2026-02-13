@@ -16,6 +16,7 @@ import { BarChart3, LineChart, ChevronDown } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone, ChartMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
+import LegendItem from './LegendItem';
 
 interface ProjectionChartProps {
   schedule: YearBreakdown[];
@@ -429,12 +430,12 @@ export default function ProjectionChart({
               </span>
             </>
           ) : hasManyFunds && stackView === 'by-fund' ? (
-            funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} />)
+            funds.map((f) => <LegendItem key={f.id} color={f.color} label={f.name} type="line" />)
           ) : (
             <>
-              <LegendItem color={COLOR_INTEREST} label="Interest" />
-              <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
-              <LegendItem color={COLOR_STARTING} label="Starting Balance" />
+              <LegendItem color={COLOR_INTEREST} label="Interest" type="line" />
+              <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" type="line" />
+              <LegendItem color={COLOR_STARTING} label="Starting Balance" type="line" />
             </>
           )
         ) : hasManyFunds && stackView === 'split' ? (
@@ -481,18 +482,6 @@ export default function ProjectionChart({
   );
 }
 
-function LegendItem({ color, label, type = 'line' }: { color: string; label: string; type?: 'line' | 'square' }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {type === 'line' ? (
-        <div className="w-3 h-0.5 rounded" style={{ backgroundColor: color }} />
-      ) : (
-        <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
-      )}
-      <span className="text-xs text-slate-400 dark:text-neutral-500">{label}</span>
-    </div>
-  );
-}
 
 interface ChartTooltipProps {
   active?: boolean;

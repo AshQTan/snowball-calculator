@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { YearBreakdown, Fund } from '../types';
 import { formatPercent, formatCurrency } from '../utils/formatters';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
+import LegendItem from './LegendItem';
 import { ChevronDown } from 'lucide-react';
 
 interface CompositionChartProps {
@@ -180,11 +181,11 @@ export default function CompositionChart({
             onChange={(e) => setSelectedYear(Number(e.target.value))}
           />
           <div className="flex justify-between text-[10px] text-slate-400 dark:text-neutral-600 mt-0.5">
-            <span>{timelineMode === 'retirement' && schedule[0]?.age ? `Age ${schedule[0].age}` : 'Year 1'}</span>
+            <span>{timelineMode === 'retirement' && schedule[0]?.age ? `Age ${schedule[0].age}` : `Year ${schedule[0]?.year ?? 0}`}</span>
             <span>
               {timelineMode === 'retirement' && schedule[schedule.length - 1]?.age
                 ? `Age ${schedule[schedule.length - 1].age}`
-                : `Year ${schedule.length}`}
+                : `Year ${schedule[schedule.length - 1]?.year ?? schedule.length - 1}`}
             </span>
           </div>
         </div>
@@ -236,14 +237,6 @@ function DetailCard({ color, label, pct, value }: { color: string; label: string
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
-      <span className="text-xs text-slate-400 dark:text-neutral-500">{label}</span>
-    </div>
-  );
-}
 
 function MiniDetail({ color, label, value }: { color: string; label: string; value: number }) {
   return (

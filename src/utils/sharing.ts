@@ -1,4 +1,4 @@
-import { AppState, getDefaultState } from '../types';
+import { AppState, YearBreakdown, getDefaultState } from '../types';
 
 export function stateToURL(state: AppState): string {
   const params = new URLSearchParams();
@@ -72,7 +72,7 @@ export function stateFromURL(): AppState | null {
 }
 
 export function exportToCSV(
-  schedule: { year: number; age: number | null; startBalance: number; totalContribution: number; totalInterest: number; endBalance: number; cumulativeContributions: number; cumulativeInterest: number }[],
+  schedule: Pick<YearBreakdown, 'year' | 'age' | 'startBalance' | 'totalContribution' | 'totalInterest' | 'endBalance' | 'cumulativeContributions' | 'cumulativeInterest'>[],
   showAge: boolean,
 ): void {
   const headers = [

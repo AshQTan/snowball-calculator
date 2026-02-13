@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ProjectionResult, Milestone } from '../types';
-import { formatCurrency, formatPercent, formatYears } from '../utils/formatters';
-import { formatCompact } from '../utils/calculations';
+import { formatCurrency, formatCompact, formatPercent, formatYears } from '../utils/formatters';
 
 function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
   const [show, setShow] = useState(false);
@@ -54,7 +53,7 @@ interface SummaryStatsProps {
 }
 
 export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
-  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, doublingTimeYears, milestones, schedule, contributionExceedsIncomeYear } = result;
+  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, doublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
 
