@@ -124,6 +124,10 @@ export default function ProjectionChart({
           ? `${row.age}`
           : `${row.year}`;
 
+      const inflationFactor = showReal ? Math.pow(1 + inflationRate / 100, row.year) : 1;
+      const contributions = showReal ? row.cumulativeContributions / inflationFactor : row.cumulativeContributions;
+      const interest = showReal ? row.realEndBalance - row.cumulativeStartingBalance - contributions : row.cumulativeInterest;
+
       if (hasManyFunds) {
         // Accumulate per-fund contributions and interest
         for (const f of funds) {
@@ -142,8 +146,8 @@ export default function ProjectionChart({
           year: row.year,
           balance,
           startingBal: row.cumulativeStartingBalance,
-          contributions: showReal ? row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeContributions,
-          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeInterest,
+          contributions,
+          interest,
           ...fundData,
         };
       } else {
@@ -153,8 +157,8 @@ export default function ProjectionChart({
           year: row.year,
           balance,
           startingBal: row.cumulativeStartingBalance,
-          contributions: showReal ? row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeContributions,
-          interest: showReal ? row.realEndBalance - row.cumulativeStartingBalance - row.cumulativeContributions / Math.pow(1 + inflationRate / 100, row.year) : row.cumulativeInterest,
+          contributions,
+          interest,
         };
       }
     });

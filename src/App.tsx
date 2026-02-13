@@ -63,7 +63,7 @@ export default function App() {
       // Update existing milestone
       setState((prev) => ({
         ...prev,
-        customMilestones: (prev.customMilestones || []).map((m) =>
+        customMilestones: prev.customMilestones.map((m) =>
           m.id === editingMilestoneId ? { ...m, name: newMsName.trim(), amount, icon: newMsIcon } : m
         ),
       }));
@@ -75,7 +75,7 @@ export default function App() {
         amount,
         icon: newMsIcon,
       };
-      setState((prev) => ({ ...prev, customMilestones: [...(prev.customMilestones || []), cm] }));
+      setState((prev) => ({ ...prev, customMilestones: [...prev.customMilestones, cm] }));
     }
     setNewMsName('');
     setNewMsAmount('');
@@ -85,7 +85,7 @@ export default function App() {
   }, [newMsName, newMsAmount, newMsIcon, editingMilestoneId]);
 
   const removeCustomMilestone = useCallback((id: string) => {
-    setState((prev) => ({ ...prev, customMilestones: (prev.customMilestones || []).filter((m) => m.id !== id) }));
+    setState((prev) => ({ ...prev, customMilestones: prev.customMilestones.filter((m) => m.id !== id) }));
     if (editingMilestoneId === id) {
       setEditingMilestoneId(null);
       setNewMsName('');
@@ -96,7 +96,7 @@ export default function App() {
   }, [editingMilestoneId]);
 
   const startEditingMilestone = useCallback((id: string) => {
-    const cm = (state.customMilestones || []).find((m) => m.id === id);
+    const cm = state.customMilestones.find((m) => m.id === id);
     if (!cm) return;
     setEditingMilestoneId(id);
     setNewMsName(cm.name);
@@ -214,10 +214,10 @@ export default function App() {
                     Delete Milestone
                   </button>
                 )}
-                {(state.customMilestones || []).length > 0 && (
+                {state.customMilestones.length > 0 && (
                   <div className="border-t border-slate-200 dark:border-neutral-700 pt-2 space-y-1.5">
                     <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Custom milestones</span>
-                    {(state.customMilestones || []).map((cm) => (
+                    {state.customMilestones.map((cm) => (
                       <div key={cm.id} className="flex items-center justify-between bg-slate-50 dark:bg-neutral-800/40 rounded-md px-2.5 py-1.5">
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{cm.icon}</span>

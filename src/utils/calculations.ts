@@ -40,6 +40,7 @@ export function computeProjection(state: AppState): ProjectionResult {
 
   let cumulativeContributions = 0;
   let cumulativeInterest = 0;
+  let totalIncome = 0;
   let contributionExceedsIncomeYear: number | null = null;
 
   // Year 0: starting state before any contributions or growth
@@ -79,6 +80,7 @@ export function computeProjection(state: AppState): ProjectionResult {
 
     // income for this year (for %-of-income contributions)
     const incomeThisYear = g.income * Math.pow(1 + g.incomeGrowthRate / 100, y - 1);
+    if (g.income > 0) totalIncome += incomeThisYear;
 
     for (const fund of funds) {
       // compute this fund's annual contribution
@@ -186,14 +188,6 @@ export function computeProjection(state: AppState): ProjectionResult {
   const finalBalance = schedule.length > 0 ? schedule[schedule.length - 1].endBalance : totalStartingBalance;
   const finalRealBalance = schedule.length > 0 ? schedule[schedule.length - 1].realEndBalance : totalStartingBalance;
 
-  // Total income earned over the projection period
-  let totalIncome = 0;
-  if (g.income > 0) {
-    for (let y = 1; y <= totalYears; y++) {
-      totalIncome += g.income * Math.pow(1 + g.incomeGrowthRate / 100, y - 1);
-    }
-  }
-
   const totalInvested = totalStartingBalance + cumulativeContributions;
   const effectiveCAGR =
     totalInvested > 0 && totalYears > 0
@@ -204,9 +198,9 @@ export function computeProjection(state: AppState): ProjectionResult {
       ? (Math.pow(finalRealBalance / Math.max(totalInvested, 1), 1 / totalYears) - 1) * 100
       : 0;
 
-  const weightedReturn = funds.reduce((s, f) => s + f.returnRate, 0) / (funds.length || 1);
-  const doublingTimeYears = weightedReturn > 0 ? 72 / weightedReturn : Infinity;
-  const realDoublingTimeYears = (weightedReturn - g.inflationRate) > 0 ? 72 / (weightedReturn - g.inflationRate) : Infinity;
+  const averageReturn = funds.reduce((s, f) => s + f.returnRate, 0) / (funds.length || 1);
+  const doublingTimeYears = averageReturn > 0 ? 72 / averageReturn : Infinity;
+  const realDoublingTimeYears = (averageReturn - g.inflationRate) > 0 ? 72 / (averageReturn - g.inflationRate) : Infinity;
 
   return {
     schedule,
