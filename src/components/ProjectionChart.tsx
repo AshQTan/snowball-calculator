@@ -27,16 +27,21 @@ interface ProjectionChartProps {
   onChartModeChange: (mode: ChartMode) => void;
 }
 
-// Custom ReferenceDot label that renders stacked SVG chevrons
-function ChevronLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number }) {
-  const { viewBox, chevronCount = 1 } = props;
+// Custom ReferenceDot label that renders stacked SVG chevrons or an emoji icon
+function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string }) {
+  const { viewBox, chevronCount = 1, icon } = props;
   if (!viewBox) return null;
-  // viewBox may be a bounding box {x, y, width, height} — compute center
   const cx = viewBox.width ? viewBox.x + viewBox.width / 2 : viewBox.x;
   const cy = viewBox.height ? viewBox.y + viewBox.height / 2 : viewBox.y;
+  if (icon) {
+    return (
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="14" dominantBaseline="auto">
+        {icon}
+      </text>
+    );
+  }
   const clamped = Math.min(chevronCount, 7);
   const spacing = 6;
-  // Position chevrons directly above the dot marker
   const startY = cy - 14 - (clamped - 1) * spacing;
   return (
     <g>
@@ -357,7 +362,7 @@ export default function ProjectionChart({
                   stroke="#fbbf24"
                   strokeWidth={0}
                 >
-                  <Label content={<ChevronLabel chevronCount={m.chevronCount} />} />
+                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} />} />
                 </ReferenceDot>
               ))}
             </AreaChart>
@@ -421,7 +426,7 @@ export default function ProjectionChart({
                   fill="none"
                   stroke="none"
                 >
-                  <Label content={<ChevronLabel chevronCount={m.chevronCount} />} />
+                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} />} />
                 </ReferenceDot>
               ))}
             </BarChart>
@@ -491,7 +496,11 @@ export default function ProjectionChart({
         {/* Milestones legend entries with distinct symbols */}
         {milestoneData.map((m) => (
           <div key={m.amount} className="flex items-center gap-1.5">
-            <LegendChevrons count={m.chevronCount} />
+            {m.icon ? (
+              <span className="text-sm leading-none">{m.icon}</span>
+            ) : (
+              <LegendChevrons count={m.chevronCount} />
+            )}
             <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
           </div>
         ))}

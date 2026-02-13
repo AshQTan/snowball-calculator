@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { formatCompact } from '../utils/calculations';
 
 const COLOR_STARTING = '#6366f1';
 const COLOR_CONTRIBUTIONS = '#22c55e';
@@ -42,6 +43,23 @@ const TABLE_VIEW_LABELS: Record<TableViewMode, string> = {
   split: 'Fund × Type',
 };
 
+function MilestoneTag({ milestone }: { milestone: Milestone }) {
+  if (milestone.custom && milestone.icon) {
+    return (
+      <span className="relative inline-flex group/ms">
+        <span className="text-sm leading-none cursor-default">{milestone.icon}</span>
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-md px-2 py-1 text-[10px] text-slate-600 dark:text-neutral-300 shadow-lg opacity-0 invisible group-hover/ms:opacity-100 group-hover/ms:visible transition-all z-30 pointer-events-none">
+          <span className="font-medium">{milestone.label}</span>
+          <span className="text-slate-400 dark:text-neutral-500 ml-1">{formatCompact(milestone.amount)}</span>
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70">{milestone.label}</span>
+  );
+}
+
 interface ScheduleTableProps {
   schedule: YearBreakdown[];
   funds: Fund[];
@@ -57,8 +75,8 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');
 
   const milestoneYears = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const m of milestones) map.set(m.year, m.label);
+    const map = new Map<number, Milestone>();
+    for (const m of milestones) map.set(m.year, m);
     return map;
   }, [milestones]);
 
@@ -156,12 +174,12 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                     </td>
                   )}
                   <td className="py-2 pr-3 font-medium">
-                    <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
-                      {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                    </span>
-                    {isMilestone && (
-                      <span className="ml-1.5 text-[10px] text-amber-600/70 dark:text-amber-500/70">{milestoneYears.get(row.year)}</span>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                      </span>
+                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                    </div>
                   </td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
                   <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>{formatCurrency(row.totalContribution)}</td>
@@ -227,12 +245,12 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   }`}
                 >
                   <td className="py-2 pr-3 font-medium">
-                    <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
-                      {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                    </span>
-                    {isMilestone && (
-                      <span className="ml-1.5 text-[10px] text-amber-600/70 dark:text-amber-500/70">{milestoneYears.get(row.year)}</span>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                      </span>
+                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                    </div>
                   </td>
                   {funds.map((fund) => (
                     <td key={fund.id} className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
@@ -291,12 +309,12 @@ export default function ScheduleTable({ schedule, funds, showReal, timelineMode,
                   }`}
                 >
                   <td className="py-2 pr-3 font-medium">
-                    <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
-                      {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                    </span>
-                    {isMilestone && (
-                      <span className="ml-1.5 text-[10px] text-amber-600/70 dark:text-amber-500/70">{milestoneYears.get(row.year)}</span>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={isMilestone ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-neutral-400'}>
+                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                      </span>
+                      {isMilestone && <MilestoneTag milestone={milestoneYears.get(row.year)!} />}
+                    </div>
                   </td>
                   {funds.map((fund) => {
                     const v = fundVariants(fund.color, darkMode);

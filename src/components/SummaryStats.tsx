@@ -1,5 +1,6 @@
 import { ProjectionResult, Milestone } from '../types';
 import { formatCurrency, formatPercent, formatYears } from '../utils/formatters';
+import { formatCompact } from '../utils/calculations';
 
 interface SummaryStatsProps {
   result: ProjectionResult;
@@ -48,15 +49,6 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span>Total contributions exceed income starting in year {contributionExceedsIncomeYear}. Consider adjusting contribution amounts or growth rates.</span>
         </div>
       )}
-
-      {/* Milestones */}
-      {milestones.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {milestones.map((m, i) => (
-            <MilestoneBadge key={m.amount} milestone={m} chevronCount={i + 1} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -81,11 +73,27 @@ function ChevronStack({ count }: { count: number }) {
   );
 }
 
-function MilestoneBadge({ milestone, chevronCount }: { milestone: Milestone; chevronCount: number }) {
+export function MilestoneBadge({ milestone, chevronCount, onClick }: { milestone: Milestone; chevronCount: number; onClick?: () => void }) {
+  const isClickable = milestone.custom && onClick;
   return (
-    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700/50 rounded-lg px-2.5 py-1.5">
-      <ChevronStack count={chevronCount} />
+    <div
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? onClick : undefined}
+      onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
+      className={`flex items-center gap-1.5 bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700/50 rounded-lg px-2.5 py-1.5 ${
+        isClickable ? 'cursor-pointer hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors' : ''
+      }`}
+    >
+      {milestone.icon ? (
+        <span className="text-sm leading-none">{milestone.icon}</span>
+      ) : (
+        <ChevronStack count={chevronCount} />
+      )}
       <span className="text-xs font-medium text-slate-700 dark:text-neutral-300">{milestone.label}</span>
+      {milestone.custom && (
+        <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatCompact(milestone.amount)}</span>
+      )}
       <span className="text-[10px] text-slate-400 dark:text-neutral-500">yr {milestone.year}</span>
     </div>
   );

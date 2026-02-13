@@ -7,7 +7,7 @@ import {
 } from '../types';
 
 export function computeProjection(state: AppState): ProjectionResult {
-  const { global: g, funds } = state;
+  const { global: g, funds, customMilestones = [] } = state;
 
   const totalYears =
     g.timelineMode === 'retirement'
@@ -18,12 +18,18 @@ export function computeProjection(state: AppState): ProjectionResult {
   const milestones: Milestone[] = [];
   const milestoneSet = new Set<number>();
 
+  // Combine built-in and custom thresholds
+  const allThresholds = [
+    ...MILESTONE_THRESHOLDS.map((t) => ({ amount: t, label: formatCompact(t), icon: undefined as string | undefined, custom: false, customMilestoneId: undefined as string | undefined })),
+    ...customMilestones.map((cm) => ({ amount: cm.amount, label: cm.name, icon: cm.icon, custom: true, customMilestoneId: cm.id })),
+  ].sort((a, b) => a.amount - b.amount);
+
   const totalStartingBalance = funds.reduce((s, f) => s + f.startingBalance, 0);
 
   // pre-mark milestones already achieved by starting balance
-  for (const threshold of MILESTONE_THRESHOLDS) {
-    if (totalStartingBalance >= threshold) {
-      milestoneSet.add(threshold);
+  for (const t of allThresholds) {
+    if (totalStartingBalance >= t.amount) {
+      milestoneSet.add(t.amount);
     }
   }
 
@@ -161,13 +167,16 @@ export function computeProjection(state: AppState): ProjectionResult {
 
     schedule.push(row);
 
-    for (const threshold of MILESTONE_THRESHOLDS) {
-      if (!milestoneSet.has(threshold) && endBalance >= threshold) {
-        milestoneSet.add(threshold);
+    for (const t of allThresholds) {
+      if (!milestoneSet.has(t.amount) && endBalance >= t.amount) {
+        milestoneSet.add(t.amount);
         milestones.push({
-          amount: threshold,
+          amount: t.amount,
           year: y,
-          label: formatCompact(threshold),
+          label: t.label,
+          icon: t.icon,
+          custom: t.custom,
+          customMilestoneId: t.customMilestoneId,
         });
       }
     }
@@ -198,7 +207,7 @@ export function computeProjection(state: AppState): ProjectionResult {
   };
 }
 
-function formatCompact(value: number): string {
+export function formatCompact(value: number): string {
   if (value >= 10_000_000) return `$${(value / 1_000_000).toFixed(0)}M`;
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;

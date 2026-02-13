@@ -46,6 +46,7 @@ export function stateFromURL(): AppState | null {
       },
       funds: d.funds,
       chartMode: 'line',
+      customMilestones: [],
     };
     const fundsRaw = JSON.parse(params.get('f')!) as {
       n: string; c: string; sb: number; ct: number;

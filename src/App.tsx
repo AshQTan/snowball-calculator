@@ -1,19 +1,25 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, ChartMode, getDefaultState } from './types';
-import { computeProjection } from './utils/calculations';
+import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, MILESTONE_ICONS, getDefaultState } from './types';
+import { computeProjection, formatCompact } from './utils/calculations';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
 import Header from './components/Header';
 import GlobalSettingsPanel from './components/GlobalSettingsPanel';
 import FundsPanel from './components/FundsPanel';
 import ProjectionChart from './components/ProjectionChart';
 import CompositionChart from './components/CompositionChart';
-import SummaryStats from './components/SummaryStats';
+import SummaryStats, { MilestoneBadge } from './components/SummaryStats';
 import ScheduleTable from './components/ScheduleTable';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => stateFromURL() || getDefaultState());
   const [shareToast, setShareToast] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [showMilestones, setShowMilestones] = useState(true);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [newMsName, setNewMsName] = useState('');
+  const [newMsAmount, setNewMsAmount] = useState('');
+  const [newMsIcon, setNewMsIcon] = useState(MILESTONE_ICONS[0]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -46,6 +52,55 @@ export default function App() {
     exportToCSV(result.schedule, state.global.timelineMode === 'retirement');
   }, [result.schedule, state.global.timelineMode]);
 
+  const addCustomMilestone = useCallback(() => {
+    const amount = parseFloat(newMsAmount.replace(/,/g, ''));
+    if (!newMsName.trim() || isNaN(amount) || amount <= 0) return;
+    if (editingMilestoneId) {
+      // Update existing milestone
+      setState((prev) => ({
+        ...prev,
+        customMilestones: (prev.customMilestones || []).map((m) =>
+          m.id === editingMilestoneId ? { ...m, name: newMsName.trim(), amount, icon: newMsIcon } : m
+        ),
+      }));
+    } else {
+      // Add new milestone
+      const cm: CustomMilestone = {
+        id: crypto.randomUUID(),
+        name: newMsName.trim(),
+        amount,
+        icon: newMsIcon,
+      };
+      setState((prev) => ({ ...prev, customMilestones: [...(prev.customMilestones || []), cm] }));
+    }
+    setNewMsName('');
+    setNewMsAmount('');
+    setNewMsIcon(MILESTONE_ICONS[0]);
+    setEditingMilestoneId(null);
+    setShowAddMilestone(false);
+  }, [newMsName, newMsAmount, newMsIcon, editingMilestoneId]);
+
+  const removeCustomMilestone = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, customMilestones: (prev.customMilestones || []).filter((m) => m.id !== id) }));
+    if (editingMilestoneId === id) {
+      setEditingMilestoneId(null);
+      setNewMsName('');
+      setNewMsAmount('');
+      setNewMsIcon(MILESTONE_ICONS[0]);
+      setShowAddMilestone(false);
+    }
+  }, [editingMilestoneId]);
+
+  const startEditingMilestone = useCallback((id: string) => {
+    const cm = (state.customMilestones || []).find((m) => m.id === id);
+    if (!cm) return;
+    setEditingMilestoneId(id);
+    setNewMsName(cm.name);
+    setNewMsAmount(String(cm.amount));
+    setNewMsIcon(cm.icon);
+    setShowAddMilestone(true);
+  }, [state.customMilestones]);
+
   useEffect(() => {
     if (shareToast) {
       const t = setTimeout(() => setShareToast(false), 2500);
@@ -70,10 +125,124 @@ export default function App() {
           {/* Right: Results */}
           <div className="space-y-4 min-w-0">
             <SummaryStats result={result} showReal={state.global.showReal} />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowMilestones(!showMilestones)}
+                className={`btn-ghost text-xs transition-colors ${
+                  showMilestones
+                    ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+                    : 'text-slate-400 dark:text-neutral-500'
+                }`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showMilestones ? 'bg-amber-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
+                Milestones {showMilestones ? 'On' : 'Off'}
+              </button>
+              <button
+                onClick={() => setShowAddMilestone(!showAddMilestone)}
+                className={`btn-ghost text-xs transition-colors ${
+                  showAddMilestone
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+                    : 'text-slate-400 dark:text-neutral-500'
+                }`}
+              >
+                <span className="text-sm leading-none mr-1">+</span>
+                Custom
+              </button>
+            </div>
+            {showAddMilestone && (
+              <div className="card !p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">{editingMilestoneId ? 'Edit Custom Milestone' : 'Add Custom Milestone'}</span>
+                  <button onClick={() => { setShowAddMilestone(false); setEditingMilestoneId(null); setNewMsName(''); setNewMsAmount(''); setNewMsIcon(MILESTONE_ICONS[0]); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-300 text-lg leading-none">&times;</button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-500 dark:text-neutral-400 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newMsName}
+                      onChange={(e) => setNewMsName(e.target.value)}
+                      placeholder="e.g. Emergency Fund"
+                      className="w-full text-sm bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-neutral-200 placeholder:text-slate-300 dark:placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-500 dark:text-neutral-400 mb-1">Target Amount</label>
+                    <input
+                      type="text"
+                      value={newMsAmount}
+                      onChange={(e) => setNewMsAmount(e.target.value)}
+                      placeholder="e.g. 75000"
+                      className="w-full text-sm bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-md px-2.5 py-1.5 text-slate-800 dark:text-neutral-200 placeholder:text-slate-300 dark:placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-400 tabular-nums"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500 dark:text-neutral-400 mb-1">Icon</label>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {MILESTONE_ICONS.map((icon) => (
+                      <button
+                        key={icon}
+                        onClick={() => setNewMsIcon(icon)}
+                        className={`w-8 h-8 rounded-md text-base flex items-center justify-center transition-all ${
+                          newMsIcon === icon
+                            ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400 scale-110'
+                            : 'bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700'
+                        }`}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={addCustomMilestone}
+                  disabled={!newMsName.trim() || !newMsAmount.trim()}
+                  className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {editingMilestoneId ? 'Save Milestone' : 'Add Milestone'}
+                </button>
+                {editingMilestoneId && (
+                  <button
+                    onClick={() => removeCustomMilestone(editingMilestoneId)}
+                    className="w-full text-xs font-medium py-1.5 rounded-md transition-colors bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50"
+                  >
+                    Delete Milestone
+                  </button>
+                )}
+                {(state.customMilestones || []).length > 0 && (
+                  <div className="border-t border-slate-200 dark:border-neutral-700 pt-2 space-y-1.5">
+                    <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Custom milestones</span>
+                    {(state.customMilestones || []).map((cm) => (
+                      <div key={cm.id} className="flex items-center justify-between bg-slate-50 dark:bg-neutral-800/40 rounded-md px-2.5 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{cm.icon}</span>
+                          <span className="text-xs font-medium text-slate-700 dark:text-neutral-300">{cm.name}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatCompact(cm.amount)}</span>
+                        </div>
+                        <button onClick={() => removeCustomMilestone(cm.id)} className="text-slate-300 hover:text-red-500 dark:text-neutral-600 dark:hover:text-red-400 text-sm leading-none">&times;</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {showMilestones && result.milestones.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {result.milestones.map((m, i) => (
+                  <MilestoneBadge
+                    key={m.amount}
+                    milestone={m}
+                    chevronCount={i + 1}
+                    onClick={m.customMilestoneId ? () => startEditingMilestone(m.customMilestoneId!) : undefined}
+                  />
+                ))}
+              </div>
+            )}
             <ProjectionChart
               schedule={result.schedule}
               funds={state.funds}
-              milestones={result.milestones}
+              milestones={showMilestones ? result.milestones : []}
               showReal={state.global.showReal}
               timelineMode={state.global.timelineMode}
               chartMode={state.chartMode}
@@ -90,7 +259,7 @@ export default function App() {
               funds={state.funds}
               showReal={state.global.showReal}
               timelineMode={state.global.timelineMode}
-              milestones={result.milestones}
+              milestones={showMilestones ? result.milestones : []}
               onExport={handleExport}
             />
           </div>

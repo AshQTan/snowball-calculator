@@ -31,6 +31,7 @@ export interface AppState {
   global: GlobalSettings;
   funds: Fund[];
   chartMode: ChartMode;
+  customMilestones: CustomMilestone[];
 }
 
 export interface YearBreakdown {
@@ -69,7 +70,24 @@ export interface Milestone {
   amount: number;
   year: number;
   label: string;
+  icon?: string;
+  custom?: boolean;
+  customMilestoneId?: string;
 }
+
+export interface CustomMilestone {
+  id: string;
+  name: string;
+  amount: number;
+  icon: string;
+}
+
+export const MILESTONE_ICONS = [
+  '🎯', '🏆', '🚀', '💎',
+  '🌟', '🔥', '🏠', '🚗',
+  '✈️', '🎓', '💰', '🏦',
+  '🎉', '⭐', '🛡️', '👑',
+];
 
 export const FUND_COLORS = [
   '#38bdf8', '#f472b6', '#a78bfa', '#2dd4bf', '#fb923c', '#f87171',
@@ -83,7 +101,7 @@ export const PRESET_RETURNS: { label: string; rate: number }[] = [
 ];
 
 export const MILESTONE_THRESHOLDS = [
-  100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000,
+  10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000,
 ];
 
 export function createFund(index: number): Fund {
@@ -119,5 +137,6 @@ export function getDefaultState(): AppState {
     },
     funds: [fund],
     chartMode: 'line',
+    customMilestones: [],
   };
 }
