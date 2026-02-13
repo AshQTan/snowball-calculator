@@ -33,6 +33,7 @@ export function computeProjection(state: AppState): ProjectionResult {
 
   let cumulativeContributions = 0;
   let cumulativeInterest = 0;
+  let contributionExceedsIncomeYear: number | null = null;
 
   // Year 0: starting state before any contributions or growth
   const year0FundBalances: Record<string, number> = {};
@@ -128,6 +129,12 @@ export function computeProjection(state: AppState): ProjectionResult {
 
     cumulativeContributions += yearContribution;
     cumulativeInterest += yearInterest;
+
+    // Check if total contributions exceed income this year
+    if (contributionExceedsIncomeYear === null && g.income > 0 && yearContribution > incomeThisYear) {
+      contributionExceedsIncomeYear = y;
+    }
+
     const endBalance = funds.reduce((s, f) => s + (bal[f.id] || 0), 0);
     const inflationFactor = Math.pow(1 + g.inflationRate / 100, y);
 
@@ -187,6 +194,7 @@ export function computeProjection(state: AppState): ProjectionResult {
     effectiveCAGR,
     doublingTimeYears,
     milestones,
+    contributionExceedsIncomeYear,
   };
 }
 

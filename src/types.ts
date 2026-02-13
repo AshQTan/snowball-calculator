@@ -62,6 +62,7 @@ export interface ProjectionResult {
   effectiveCAGR: number;
   doublingTimeYears: number;
   milestones: Milestone[];
+  contributionExceedsIncomeYear: number | null;
 }
 
 export interface Milestone {

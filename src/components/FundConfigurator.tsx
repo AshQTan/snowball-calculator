@@ -134,7 +134,17 @@ export default function FundConfigurator({
 
           {/* Contribution */}
           <div>
-            <label className="input-label">Contribution</label>
+            <label className="input-label relative group/contrib inline-flex items-center gap-1">
+              Contribution
+              {fund.contributionType === 'percent_of_income' && (
+                <>
+                  <span className="text-slate-300 dark:text-neutral-600 cursor-help">ⓘ</span>
+                  <div className="absolute bottom-full left-0 mb-2 w-52 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed normal-case tracking-normal font-normal opacity-0 pointer-events-none group-hover/contrib:opacity-100 transition-opacity z-50 shadow-xl text-left">
+                    Percentage of your annual income contributed to this fund. The actual dollar amount grows automatically as your income increases.
+                  </div>
+                </>
+              )}
+            </label>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex gap-1.5">
                 <div className="relative flex-1">
@@ -152,8 +162,9 @@ export default function FundConfigurator({
                         type="number"
                         className="input-field pr-7"
                         value={fund.contribution || ''}
-                        onChange={(e) => onChange({ contribution: Number(e.target.value) || 0 })}
+                        onChange={(e) => onChange({ contribution: Math.min(Number(e.target.value) || 0, 100) })}
                         min={0}
+                        max={100}
                         step={1}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
@@ -184,25 +195,36 @@ export default function FundConfigurator({
             </div>
           </div>
 
-          {/* Contribution Growth */}
+          {/* Contribution Growth — only for fixed $ contributions; % of income grows via income growth */}
           {fund.contributionType === 'fixed' && (
-            <div>
+          <div>
               <label className="input-label">Contribution Increase</label>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex gap-1.5">
                   <div className="relative flex-1">
-                    <input
-                      type="number"
-                      className="input-field pr-7"
-                      value={fund.contributionGrowthRate}
-                      onChange={(e) => onChange({ contributionGrowthRate: Number(e.target.value) || 0 })}
-                      min={0}
-                      max={fund.contributionGrowthType === 'percent' ? 30 : 10000}
-                      step={fund.contributionGrowthType === 'percent' ? 0.5 : 1}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">
-                      {fund.contributionGrowthType === 'percent' ? '%' : '$'}
-                    </span>
+                    {fund.contributionGrowthType === 'fixed' ? (
+                      <NumericInput
+                        value={fund.contributionGrowthRate || ''}
+                        onChange={(v) => onChange({ contributionGrowthRate: v })}
+                        min={0}
+                        max={10000}
+                        step={1}
+                        prefix="$"
+                      />
+                    ) : (
+                      <>
+                        <input
+                          type="number"
+                          className="input-field pr-7"
+                          value={fund.contributionGrowthRate}
+                          onChange={(e) => onChange({ contributionGrowthRate: Math.min(Number(e.target.value) || 0, 100) })}
+                          min={0}
+                          max={100}
+                          step={0.5}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-neutral-500 text-sm">%</span>
+                      </>
+                    )}
                   </div>
                   <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 h-[38px]">
                     <button

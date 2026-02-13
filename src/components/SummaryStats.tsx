@@ -7,7 +7,7 @@ interface SummaryStatsProps {
 }
 
 export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
-  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, doublingTimeYears, milestones, schedule } = result;
+  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, doublingTimeYears, milestones, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
 
@@ -40,6 +40,14 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           </div>
         </div>
       </div>
+
+      {/* Warnings */}
+      {contributionExceedsIncomeYear !== null && (
+        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <span className="mt-0.5">⚠️</span>
+          <span>Total contributions exceed income starting in year {contributionExceedsIncomeYear}. Consider adjusting contribution amounts or growth rates.</span>
+        </div>
+      )}
 
       {/* Milestones */}
       {milestones.length > 0 && (

@@ -100,7 +100,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
                 type="number"
                 className="input-field pr-7 text-right"
                 value={settings.inflationRate}
-                onChange={(e) => onChange({ inflationRate: Number(e.target.value) || 0 })}
+                onChange={(e) => onChange({ inflationRate: Math.min(Math.max(Number(e.target.value) || 0, 0), 100) })}
                 min={0}
                 max={20}
                 step={0.5}
@@ -131,7 +131,7 @@ export default function GlobalSettingsPanel({ settings, onChange }: GlobalSettin
                 type="number"
                 className="input-field pr-7"
                 value={settings.incomeGrowthRate}
-                onChange={(e) => onChange({ incomeGrowthRate: Number(e.target.value) || 0 })}
+                onChange={(e) => onChange({ incomeGrowthRate: Math.min(Math.max(Number(e.target.value) || 0, 0), 100) })}
                 min={0}
                 max={30}
                 step={0.5}
