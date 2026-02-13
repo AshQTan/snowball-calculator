@@ -185,6 +185,15 @@ export function computeProjection(state: AppState): ProjectionResult {
 
   const finalBalance = schedule.length > 0 ? schedule[schedule.length - 1].endBalance : totalStartingBalance;
   const finalRealBalance = schedule.length > 0 ? schedule[schedule.length - 1].realEndBalance : totalStartingBalance;
+
+  // Total income earned over the projection period
+  let totalIncome = 0;
+  if (g.income > 0) {
+    for (let y = 1; y <= totalYears; y++) {
+      totalIncome += g.income * Math.pow(1 + g.incomeGrowthRate / 100, y - 1);
+    }
+  }
+
   const totalInvested = totalStartingBalance + cumulativeContributions;
   const effectiveCAGR =
     totalInvested > 0 && totalYears > 0
@@ -202,6 +211,7 @@ export function computeProjection(state: AppState): ProjectionResult {
   return {
     schedule,
     totalContributed: cumulativeContributions,
+    totalIncome,
     totalInterest: cumulativeInterest,
     totalStartingBalance,
     finalBalance,

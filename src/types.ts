@@ -56,6 +56,7 @@ export interface YearBreakdown {
 export interface ProjectionResult {
   schedule: YearBreakdown[];
   totalContributed: number;
+  totalIncome: number;
   totalInterest: number;
   totalStartingBalance: number;
   finalBalance: number;

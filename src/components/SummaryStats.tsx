@@ -53,7 +53,7 @@ interface SummaryStatsProps {
 }
 
 export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
-  const { finalBalance, finalRealBalance, totalContributed, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
+  const { finalBalance, finalRealBalance, totalContributed, totalIncome, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
 
@@ -71,11 +71,13 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalStartingBalance + totalContributed)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + ${totalContributed.toLocaleString()} contrib.</span>
+          {totalIncome > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalContributed / totalIncome * 100)} of income saved</span>}
         </div>
         <div className="stat-card items-center text-center">
           <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
           <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
+          {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
         </div>
         <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>
           <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
