@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
-import { YearBreakdown, Fund, Milestone } from '../types';
+import { YearBreakdown, Fund, Milestone, Strategy, ProjectionResult } from '../types';
 import { formatCurrency, formatCompact, formatPercent } from '../utils/formatters';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 
@@ -87,9 +87,12 @@ interface ScheduleTableProps {
   timelineMode: 'years' | 'retirement';
   milestones: Milestone[];
   onExport: () => void;
+  strategies?: Strategy[];
+  activeStrategyId?: string;
+  allResults?: Map<string, ProjectionResult>;
 }
 
-export default function ScheduleTable({ schedule, funds, showReal, darkMode, timelineMode, milestones, onExport }: ScheduleTableProps) {
+export default function ScheduleTable({ schedule, funds, showReal, darkMode, timelineMode, milestones, onExport, strategies: _strategies, activeStrategyId: _activeStrategyId, allResults: _allResults }: ScheduleTableProps) {
   const [expanded, setExpanded] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<TableViewMode>('combined');

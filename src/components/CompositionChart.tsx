@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { YearBreakdown, Fund } from '../types';
+import { YearBreakdown, Fund, Strategy, ProjectionResult } from '../types';
 import { formatPercent, formatCurrency } from '../utils/formatters';
 import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
 import LegendItem from './LegendItem';
@@ -10,6 +10,10 @@ interface CompositionChartProps {
   funds: Fund[];
   darkMode: boolean;
   timelineMode: 'years' | 'retirement';
+  strategies?: Strategy[];
+  activeStrategyId?: string;
+  allResults?: Map<string, ProjectionResult>;
+  onSwitchStrategy?: (id: string) => void;
 }
 
 type CompView = 'combined' | 'by-fund';
@@ -23,6 +27,10 @@ export default function CompositionChart({
   funds,
   darkMode,
   timelineMode,
+  strategies,
+  activeStrategyId,
+  allResults,
+  onSwitchStrategy,
 }: CompositionChartProps) {
   const [selectedYear, setSelectedYear] = useState(schedule.length);
   const [compView, setCompView] = useState<CompView>('combined');
@@ -219,6 +227,115 @@ export default function CompositionChart({
             <LegendItem color={COLOR_INTEREST} label="Interest" />
           </>
         )}
+      </div>
+
+      {/* Strategy comparison bars */}
+      {strategies && strategies.length > 1 && allResults && (
+        <StrategyComparison
+          strategies={strategies}
+          activeStrategyId={activeStrategyId!}
+          allResults={allResults}
+          clampedYear={clampedYear}
+          darkMode={darkMode}
+          onSwitchStrategy={onSwitchStrategy}
+        />
+      )}
+    </div>
+  );
+}
+
+function StrategyComparison({
+  strategies,
+  activeStrategyId,
+  allResults,
+  clampedYear,
+  onSwitchStrategy,
+}: {
+  strategies: Strategy[];
+  activeStrategyId: string;
+  allResults: Map<string, ProjectionResult>;
+  clampedYear: number;
+  darkMode: boolean;
+  onSwitchStrategy?: (id: string) => void;
+}) {
+  const strategyData = useMemo(() => {
+    return strategies.map((s) => {
+      const result = allResults.get(s.id);
+      if (!result || clampedYear < 1 || clampedYear > result.schedule.length) {
+        return { strategy: s, total: 0, pctStart: 0, pctContrib: 0, pctInterest: 0, startVal: 0, contribVal: 0, interestVal: 0 };
+      }
+      const row = result.schedule[clampedYear - 1];
+      return {
+        strategy: s,
+        total: row.endBalance,
+        pctStart: row.pctStartingBalance,
+        pctContrib: row.pctContributions,
+        pctInterest: row.pctInterest,
+        startVal: row.cumulativeStartingBalance,
+        contribVal: row.cumulativeContributions,
+        interestVal: row.cumulativeInterest,
+      };
+    });
+  }, [strategies, allResults, clampedYear]);
+
+  const maxTotal = Math.max(...strategyData.map((d) => d.total), 1);
+
+  return (
+    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-neutral-700">
+      <div className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-2 font-medium">
+        Strategy Comparison
+      </div>
+      <div className="space-y-1.5">
+        {strategyData.map(({ strategy, total, pctStart, pctContrib, pctInterest, startVal, contribVal, interestVal }) => {
+          const isActive = strategy.id === activeStrategyId;
+          const barWidth = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+          return (
+            <button
+              key={strategy.id}
+              className={`w-full text-left transition-all rounded-md px-2 py-1.5 ${
+                isActive
+                  ? 'bg-slate-100 dark:bg-neutral-800/60 ring-1 ring-slate-300 dark:ring-neutral-600'
+                  : 'hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+              }`}
+              onClick={() => onSwitchStrategy?.(strategy.id)}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: strategy.color }} />
+                  <span className={`text-[11px] font-medium ${isActive ? 'text-slate-700 dark:text-neutral-200' : 'text-slate-500 dark:text-neutral-400'}`}>
+                    {strategy.name}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 tabular-nums">
+                  {formatCurrency(total)}
+                </span>
+              </div>
+              <div className="h-5 flex" style={{ width: `${barWidth}%` }}>
+                {pctStart > 0 && (
+                  <div
+                    className="h-full rounded-l-sm"
+                    style={{ width: `${pctStart}%`, backgroundColor: COLOR_STARTING }}
+                    title={`Starting: ${formatCurrency(startVal)}`}
+                  />
+                )}
+                {pctContrib > 0 && (
+                  <div
+                    className="h-full"
+                    style={{ width: `${pctContrib}%`, backgroundColor: COLOR_CONTRIBUTIONS }}
+                    title={`Contributions: ${formatCurrency(contribVal)}`}
+                  />
+                )}
+                {pctInterest > 0 && (
+                  <div
+                    className="h-full rounded-r-sm"
+                    style={{ width: `${pctInterest}%`, backgroundColor: COLOR_INTEREST }}
+                    title={`Interest: ${formatCurrency(interestVal)}`}
+                  />
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

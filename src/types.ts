@@ -27,9 +27,17 @@ export interface GlobalSettings {
   incomeGrowthRate: number;
 }
 
+export interface Strategy {
+  id: string;
+  name: string;
+  color: string;
+  funds: Fund[];
+}
+
 export interface AppState {
   global: GlobalSettings;
-  funds: Fund[];
+  strategies: Strategy[];
+  activeStrategyId: string;
   chartMode: ChartMode;
   customMilestones: CustomMilestone[];
 }
@@ -96,6 +104,12 @@ export const FUND_COLORS = [
   '#38bdf8', '#f87171', '#2dd4bf', '#fb923c', '#a78bfa', '#f472b6',
 ];
 
+export const STRATEGY_COLORS = [
+  '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899',
+];
+
+export const MAX_STRATEGIES = 5;
+
 export const PRESET_RETURNS: { label: string; rate: number }[] = [
   { label: 'Conservative', rate: 5 },
   { label: 'Moderate', rate: 7 },
@@ -124,9 +138,19 @@ export function createFund(index: number): Fund {
   };
 }
 
+export function createStrategy(name: string, color: string, funds: Fund[]): Strategy {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    color,
+    funds,
+  };
+}
+
 export function getDefaultState(): AppState {
   const fund = createFund(0);
   fund.startingBalance = 1000;
+  const strategy = createStrategy('Strategy 1', STRATEGY_COLORS[0], [fund]);
   return {
     global: {
       timelineMode: 'years',
@@ -138,7 +162,8 @@ export function getDefaultState(): AppState {
       income: 50000,
       incomeGrowthRate: 3,
     },
-    funds: [fund],
+    strategies: [strategy],
+    activeStrategyId: strategy.id,
     chartMode: 'line',
     customMilestones: [],
   };

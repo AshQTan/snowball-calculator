@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, MILESTONE_ICONS, getDefaultState } from './types';
+import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy } from './types';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -7,6 +7,7 @@ import Header from './components/Header';
 import GlobalSettingsPanel from './components/GlobalSettingsPanel';
 import FundsPanel from './components/FundsPanel';
 import ProjectionChart from './components/ProjectionChart';
+import ProjectionChartComparison from './components/ProjectionChartComparison';
 import CompositionChart from './components/CompositionChart';
 import SummaryStats, { MilestoneBadge } from './components/SummaryStats';
 import ScheduleTable from './components/ScheduleTable';
@@ -27,14 +28,34 @@ export default function App() {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  const result = useMemo(() => computeProjection(state), [state]);
+  // Derive active strategy and funds
+  const activeStrategy = useMemo(
+    () => state.strategies.find((s) => s.id === state.activeStrategyId) || state.strategies[0],
+    [state.strategies, state.activeStrategyId],
+  );
+  const activeFunds = activeStrategy.funds;
+
+  // Compute projections for all strategies
+  const allResults = useMemo(
+    () => new Map(state.strategies.map((s) => [
+      s.id,
+      computeProjection(state.global, s.funds, state.customMilestones),
+    ])),
+    [state.strategies, state.global, state.customMilestones],
+  );
+  const result = allResults.get(state.activeStrategyId) || allResults.values().next().value!;
 
   const updateGlobal = useCallback((updates: Partial<GlobalSettings>) => {
     setState((prev) => ({ ...prev, global: { ...prev.global, ...updates } }));
   }, []);
 
   const updateFunds = useCallback((funds: Fund[]) => {
-    setState((prev) => ({ ...prev, funds }));
+    setState((prev) => ({
+      ...prev,
+      strategies: prev.strategies.map((s) =>
+        s.id === prev.activeStrategyId ? { ...s, funds } : s
+      ),
+    }));
   }, []);
 
   const setChartMode = useCallback((chartMode: ChartMode) => {
@@ -114,6 +135,79 @@ export default function App() {
 
   const showIncomeOption = state.global.income > 0;
 
+  // — Strategy management —
+  const nextStrategyColor = useCallback((strategies: Strategy[]) => {
+    const usedColors = new Set(strategies.map((s) => s.color));
+    return STRATEGY_COLORS.find((c) => !usedColors.has(c)) || STRATEGY_COLORS[0];
+  }, []);
+
+  const addStrategy = useCallback(() => {
+    setState((prev) => {
+      if (prev.strategies.length >= MAX_STRATEGIES) return prev;
+      const active = prev.strategies.find((s) => s.id === prev.activeStrategyId) || prev.strategies[0];
+      // Generate unique name: Strategy 2, Strategy 3, etc.
+      const existingNames = new Set(prev.strategies.map((s) => s.name));
+      let n = prev.strategies.length + 1;
+      while (existingNames.has(`Strategy ${n}`)) n++;
+      const baseName = `Strategy ${n}`;
+      const newFunds = active.funds.map((f) => ({ ...f, id: crypto.randomUUID() }));
+      const color = nextStrategyColor(prev.strategies);
+      const strategy = createStrategy(baseName, color, newFunds);
+      return {
+        ...prev,
+        strategies: [...prev.strategies, strategy],
+        activeStrategyId: strategy.id,
+      };
+    });
+  }, [nextStrategyColor]);
+
+  const deleteStrategy = useCallback((id: string) => {
+    setState((prev) => {
+      if (prev.strategies.length <= 1) return prev;
+      const filtered = prev.strategies.filter((s) => s.id !== id);
+      return {
+        ...prev,
+        strategies: filtered,
+        activeStrategyId: prev.activeStrategyId === id ? filtered[0].id : prev.activeStrategyId,
+      };
+    });
+  }, []);
+
+  const renameStrategy = useCallback((id: string, name: string) => {
+    if (!name.trim()) return;
+    setState((prev) => ({
+      ...prev,
+      strategies: prev.strategies.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)),
+    }));
+  }, []);
+
+  const duplicateStrategy = useCallback((id: string) => {
+    setState((prev) => {
+      if (prev.strategies.length >= MAX_STRATEGIES) return prev;
+      const source = prev.strategies.find((s) => s.id === id);
+      if (!source) return prev;
+      let baseName = `${source.name} (copy)`;
+      const existingNames = new Set(prev.strategies.map((s) => s.name));
+      if (existingNames.has(baseName)) {
+        let i = 2;
+        while (existingNames.has(`${source.name} (copy ${i})`)) i++;
+        baseName = `${source.name} (copy ${i})`;
+      }
+      const newFunds = source.funds.map((f) => ({ ...f, id: crypto.randomUUID() }));
+      const color = nextStrategyColor(prev.strategies);
+      const strategy = createStrategy(baseName, color, newFunds);
+      return {
+        ...prev,
+        strategies: [...prev.strategies, strategy],
+        activeStrategyId: strategy.id,
+      };
+    });
+  }, [nextStrategyColor]);
+
+  const setActiveStrategyId = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, activeStrategyId: id }));
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-neutral-950 transition-colors duration-500">
       <Header onShare={handleShare} onExportPDF={() => window.print()} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
@@ -123,7 +217,18 @@ export default function App() {
           {/* Left: Settings */}
           <div className="space-y-4 lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2 lg:sticky lg:top-[76px]">
             <GlobalSettingsPanel settings={state.global} onChange={updateGlobal} />
-            <FundsPanel funds={state.funds} showIncomeOption={showIncomeOption} onChange={updateFunds} />
+            <FundsPanel
+              funds={activeFunds}
+              showIncomeOption={showIncomeOption}
+              onChange={updateFunds}
+              strategies={state.strategies}
+              activeStrategyId={state.activeStrategyId}
+              onSwitchStrategy={setActiveStrategyId}
+              onAddStrategy={addStrategy}
+              onDeleteStrategy={deleteStrategy}
+              onRenameStrategy={renameStrategy}
+              onDuplicateStrategy={duplicateStrategy}
+            />
           </div>
 
           {/* Right: Results */}
@@ -243,26 +348,39 @@ export default function App() {
                 ))}
               </div>
             )}
-            <ProjectionChart
-              schedule={result.schedule}
-              funds={state.funds}
-              milestones={showMilestones ? result.milestones : []}
-              showReal={state.global.showReal}
-              inflationRate={state.global.inflationRate}
-              timelineMode={state.global.timelineMode}
-              chartMode={state.chartMode}
-              darkMode={darkMode}
-              onChartModeChange={setChartMode}
-            />
+            {state.strategies.length > 1 ? (
+              <ProjectionChartComparison
+                strategies={state.strategies}
+                allResults={allResults}
+                showReal={state.global.showReal}
+                inflationRate={state.global.inflationRate}
+                timelineMode={state.global.timelineMode}
+                chartMode={state.chartMode}
+                darkMode={darkMode}
+                onChartModeChange={setChartMode}
+              />
+            ) : (
+              <ProjectionChart
+                schedule={result.schedule}
+                funds={activeFunds}
+                milestones={showMilestones ? result.milestones : []}
+                showReal={state.global.showReal}
+                inflationRate={state.global.inflationRate}
+                timelineMode={state.global.timelineMode}
+                chartMode={state.chartMode}
+                darkMode={darkMode}
+                onChartModeChange={setChartMode}
+              />
+            )}
             <CompositionChart
               schedule={result.schedule}
-              funds={state.funds}
+              funds={activeFunds}
               darkMode={darkMode}
               timelineMode={state.global.timelineMode}
             />
             <ScheduleTable
               schedule={result.schedule}
-              funds={state.funds}
+              funds={activeFunds}
               showReal={state.global.showReal}
               darkMode={darkMode}
               timelineMode={state.global.timelineMode}

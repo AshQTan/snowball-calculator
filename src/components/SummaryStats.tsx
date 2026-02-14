@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ProjectionResult, Milestone } from '../types';
+import { ProjectionResult, Milestone, Strategy } from '../types';
 import { formatCurrency, formatCompact, formatPercent, formatYears } from '../utils/formatters';
 
 function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
@@ -50,9 +50,13 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
 interface SummaryStatsProps {
   result: ProjectionResult;
   showReal: boolean;
+  strategies?: Strategy[];
+  activeStrategyId?: string;
+  allResults?: Map<string, ProjectionResult>;
+  onSwitchStrategy?: (id: string) => void;
 }
 
-export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
+export default function SummaryStats({ result, showReal, strategies, activeStrategyId, allResults, onSwitchStrategy }: SummaryStatsProps) {
   const { finalBalance, finalRealBalance, totalContributed, totalIncome, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
@@ -94,6 +98,57 @@ export default function SummaryStats({ result, showReal }: SummaryStatsProps) {
           <span>Total contributions exceed income starting in year {contributionExceedsIncomeYear}. Consider adjusting contribution amounts or growth rates.</span>
         </div>
       )}
+
+      {/* Strategy comparison strip */}
+      {strategies && strategies.length > 1 && allResults && (() => {
+        const items = strategies.map((s) => {
+          const r = allResults.get(s.id);
+          const bal = r ? (showReal ? r.finalRealBalance : r.finalBalance) : 0;
+          return { strategy: s, balance: bal };
+        }).sort((a, b) => b.balance - a.balance);
+        const maxBal = Math.max(...items.map((i) => i.balance), 1);
+        return (
+          <div className="card !p-3 space-y-2">
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Strategy Comparison</span>
+            <div className="space-y-1.5">
+              {items.map(({ strategy: s, balance: bal }) => (
+                <button
+                  key={s.id}
+                  onClick={() => onSwitchStrategy?.(s.id)}
+                  className={`w-full text-left rounded-md px-2 py-1.5 transition-colors ${
+                    s.id === activeStrategyId
+                      ? 'bg-slate-100 dark:bg-neutral-800'
+                      : 'hover:bg-slate-50 dark:hover:bg-neutral-800/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium flex items-center gap-1.5 text-slate-700 dark:text-neutral-300">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                      {s.name}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(bal)}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-neutral-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${(bal / maxBal) * 100}%`, backgroundColor: s.color }}
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+            {strategies.length === 2 && (() => {
+              const diff = items[0].balance - items[1].balance;
+              const pctDiff = items[1].balance > 0 ? (diff / items[1].balance) * 100 : 0;
+              return (
+                <div className="text-[10px] text-slate-400 dark:text-neutral-500 text-center">
+                  Δ {formatCurrency(diff)} ({formatPercent(pctDiff)})
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
     </div>
   );
 }

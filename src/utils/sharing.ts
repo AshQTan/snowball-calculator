@@ -1,4 +1,4 @@
-import { AppState, YearBreakdown, getDefaultState } from '../types';
+import { AppState, YearBreakdown, getDefaultState, STRATEGY_COLORS, createStrategy } from '../types';
 
 export function stateToURL(state: AppState): string {
   const params = new URLSearchParams();
@@ -12,60 +12,87 @@ export function stateToURL(state: AppState): string {
   params.set('inc', String(g.income));
   params.set('ig', String(g.incomeGrowthRate));
 
-  const funds = state.funds.map((f) => ({
-    n: f.name,
-    c: f.color,
-    sb: f.startingBalance,
-    ct: f.contribution,
-    cty: f.contributionType,
-    cf: f.contributionFrequency,
-    cg: f.contributionGrowthRate,
-    cgt: f.contributionGrowthType,
-    cgi: f.contributionGrowthInterval,
-    r: f.returnRate,
+  const strategies = state.strategies.map((s) => ({
+    n: s.name,
+    c: s.color,
+    f: s.funds.map((f) => ({
+      n: f.name,
+      c: f.color,
+      sb: f.startingBalance,
+      ct: f.contribution,
+      cty: f.contributionType,
+      cf: f.contributionFrequency,
+      cg: f.contributionGrowthRate,
+      cgt: f.contributionGrowthType,
+      cgi: f.contributionGrowthInterval,
+      r: f.returnRate,
+    })),
   }));
-  params.set('f', JSON.stringify(funds));
+  params.set('s', JSON.stringify(strategies));
+  const activeIdx = state.strategies.findIndex((s) => s.id === state.activeStrategyId);
+  if (activeIdx > 0) params.set('as', String(activeIdx));
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
 
 export function stateFromURL(): AppState | null {
   const params = new URLSearchParams(window.location.search);
-  if (!params.has('f')) return null;
+  // Need either 's' (new multi-strategy) or 'f' (legacy single-strategy)
+  if (!params.has('s') && !params.has('f')) return null;
   try {
     const d = getDefaultState();
-    const st: AppState = {
-      global: {
-        timelineMode: (params.get('tm') as 'years' | 'retirement') || d.global.timelineMode,
-        years: Number(params.get('y')) || d.global.years,
-        currentAge: Number(params.get('ca')) || d.global.currentAge,
-        retirementAge: Number(params.get('ra')) || d.global.retirementAge,
-        inflationRate: params.has('ir') ? Number(params.get('ir')) : d.global.inflationRate,
-        showReal: params.get('sr') === '1',
-        income: Number(params.get('inc')) || d.global.income,
-        incomeGrowthRate: params.has('ig') ? Number(params.get('ig')) : d.global.incomeGrowthRate,
-      },
-      funds: d.funds,
+    const globalSettings = {
+      timelineMode: (params.get('tm') as 'years' | 'retirement') || d.global.timelineMode,
+      years: Number(params.get('y')) || d.global.years,
+      currentAge: Number(params.get('ca')) || d.global.currentAge,
+      retirementAge: Number(params.get('ra')) || d.global.retirementAge,
+      inflationRate: params.has('ir') ? Number(params.get('ir')) : d.global.inflationRate,
+      showReal: params.get('sr') === '1',
+      income: Number(params.get('inc')) || d.global.income,
+      incomeGrowthRate: params.has('ig') ? Number(params.get('ig')) : d.global.incomeGrowthRate,
+    };
+
+    const parseFunds = (fundsRaw: { n: string; c: string; sb: number; ct: number; cty: string; cf: string; cg: number; cgt?: string; cgi?: number; r: number }[]) =>
+      fundsRaw.map((f) => ({
+        id: crypto.randomUUID(),
+        name: f.n,
+        color: f.c,
+        startingBalance: f.sb,
+        contribution: f.ct,
+        contributionType: f.cty as 'fixed' | 'percent_of_income',
+        contributionFrequency: f.cf as 'monthly' | 'annually',
+        contributionGrowthRate: f.cg,
+        contributionGrowthType: (f.cgt as 'percent' | 'fixed') || 'percent',
+        contributionGrowthInterval: f.cgi || 1,
+        returnRate: f.r,
+      }));
+
+    let strategies: AppState['strategies'];
+    let activeStrategyId: string;
+
+    if (params.has('s')) {
+      // New multi-strategy format
+      const strategiesRaw = JSON.parse(params.get('s')!) as { n: string; c: string; f: any[] }[];
+      strategies = strategiesRaw.map((s) =>
+        createStrategy(s.n, s.c, parseFunds(s.f))
+      );
+      const activeIdx = Number(params.get('as') || '0');
+      activeStrategyId = strategies[Math.min(activeIdx, strategies.length - 1)]?.id || strategies[0].id;
+    } else {
+      // Legacy single-strategy format (backward compat)
+      const fundsRaw = JSON.parse(params.get('f')!) as any[];
+      const funds = parseFunds(fundsRaw);
+      const strategy = createStrategy('Strategy 1', STRATEGY_COLORS[0], funds);
+      strategies = [strategy];
+      activeStrategyId = strategy.id;
+    }
+
+    return {
+      global: globalSettings,
+      strategies,
+      activeStrategyId,
       chartMode: 'line',
       customMilestones: [],
     };
-    const fundsRaw = JSON.parse(params.get('f')!) as {
-      n: string; c: string; sb: number; ct: number;
-      cty: string; cf: string; cg: number; cgt?: string; cgi?: number; r: number;
-    }[];
-    st.funds = fundsRaw.map((f) => ({
-      id: crypto.randomUUID(),
-      name: f.n,
-      color: f.c,
-      startingBalance: f.sb,
-      contribution: f.ct,
-      contributionType: f.cty as 'fixed' | 'percent_of_income',
-      contributionFrequency: f.cf as 'monthly' | 'annually',
-      contributionGrowthRate: f.cg,
-      contributionGrowthType: (f.cgt as 'percent' | 'fixed') || 'percent',
-      contributionGrowthInterval: f.cgi || 1,
-      returnRate: f.r,
-    }));
-    return st;
   } catch {
     return null;
   }

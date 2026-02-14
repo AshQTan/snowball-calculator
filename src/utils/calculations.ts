@@ -1,5 +1,7 @@
 import {
-  AppState,
+  GlobalSettings,
+  Fund,
+  CustomMilestone,
   YearBreakdown,
   ProjectionResult,
   Milestone,
@@ -7,8 +9,12 @@ import {
 } from '../types';
 import { formatCompact } from './formatters';
 
-export function computeProjection(state: AppState): ProjectionResult {
-  const { global: g, funds, customMilestones = [] } = state;
+export function computeProjection(
+  global: GlobalSettings,
+  funds: Fund[],
+  customMilestones: CustomMilestone[] = [],
+): ProjectionResult {
+  const g = global;
 
   const totalYears =
     g.timelineMode === 'retirement'
