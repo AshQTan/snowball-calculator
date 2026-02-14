@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Fund, PRESET_RETURNS, FUND_COLORS, ContributionFrequency } from '../types';
+import { Fund, PRESET_RETURNS, FUND_COLORS, FUND_PICKER_COUNT, ContributionFrequency } from '../types';
 import NumericInput from './NumericInput';
 
 interface FundConfiguratorProps {
@@ -63,7 +63,7 @@ export default function FundConfigurator({
       {/* Color picker */}
       {showColors && (
         <div className="px-4 pb-3 flex flex-wrap gap-2">
-          {FUND_COLORS.map((c) => (
+          {FUND_COLORS.slice(0, FUND_PICKER_COUNT).map((c) => (
             <button
               key={c}
               className={`color-swatch ${fund.color === c ? 'color-swatch-active' : ''}`}

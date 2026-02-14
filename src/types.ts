@@ -100,9 +100,13 @@ export const MILESTONE_ICONS = [
   '🎉', '⭐', '🛡️', '👑',
 ];
 
+// First 6 are shown in the fund color picker; the rest are reserved for
+// auto-assignment when creating new strategies so fund colors stay distinct.
 export const FUND_COLORS = [
-  '#38bdf8', '#f87171', '#2dd4bf', '#fb923c', '#a78bfa', '#f472b6',
+  '#7dd3fc', '#fca5a5', '#99f6e4', '#fdba74', '#c4b5fd', '#f9a8d4',
+  '#86efac', '#fde68a', '#f0abfc', '#a5b4fc', '#bef264', '#67e8f9',
 ];
+export const FUND_PICKER_COUNT = 6;
 
 export const STRATEGY_COLORS = [
   '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899',

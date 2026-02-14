@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, MoreHorizontal, Copy, Trash2, Pencil } from 'lucide-react';
-import { Fund, Strategy, MAX_STRATEGIES, createFund } from '../types';
+import { Fund, Strategy, MAX_STRATEGIES, STRATEGY_COLORS, createFund } from '../types';
 import FundConfigurator from './FundConfigurator';
 
 interface FundsPanelProps {
@@ -15,6 +15,7 @@ interface FundsPanelProps {
   onDeleteStrategy: (id: string) => void;
   onRenameStrategy: (id: string, name: string) => void;
   onDuplicateStrategy: (id: string) => void;
+  onChangeStrategyColor: (id: string, color: string) => void;
 }
 
 function StrategyTabMenu({
@@ -64,6 +65,57 @@ function StrategyTabMenu({
   );
 }
 
+function StrategyColorPicker({
+  anchorRect,
+  currentColor,
+  onChange,
+  onClose,
+}: {
+  anchorRect: DOMRect;
+  currentColor: string;
+  onChange: (color: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-[9999] bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-xl p-2"
+      style={{ top: anchorRect.bottom + 6, left: anchorRect.left - 40 }}
+    >
+      <div className="flex items-center gap-2">
+        {STRATEGY_COLORS.map((c) => (
+          <button
+            key={c}
+            className={`color-swatch ${currentColor === c ? 'color-swatch-active' : ''}`}
+            style={{ backgroundColor: c }}
+            onClick={() => { onChange(c); }}
+          />
+        ))}
+        <div className="relative">
+          <input
+            type="color"
+            value={currentColor}
+            onChange={(e) => { onChange(e.target.value); }}
+            className="w-6 h-6 rounded-md cursor-pointer border-2 border-slate-300 dark:border-neutral-700"
+            title="Custom color"
+          />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function FundsPanel({
   funds,
   showIncomeOption,
@@ -75,9 +127,12 @@ export default function FundsPanel({
   onDeleteStrategy,
   onRenameStrategy,
   onDuplicateStrategy,
+  onChangeStrategyColor,
 }: FundsPanelProps) {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null);
+  const [colorPickerId, setColorPickerId] = useState<string | null>(null);
+  const [colorPickerRect, setColorPickerRect] = useState<DOMRect | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +198,21 @@ export default function FundsPanel({
                       : 'text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-800/50'
                   }`}
                 >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 cursor-pointer hover:scale-125 transition-transform ring-offset-1 ring-offset-white dark:ring-offset-neutral-900"
+                    style={{ backgroundColor: s.color }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (colorPickerId === s.id) {
+                        setColorPickerId(null);
+                        setColorPickerRect(null);
+                      } else {
+                        setColorPickerId(s.id);
+                        setColorPickerRect((e.currentTarget as HTMLElement).getBoundingClientRect());
+                      }
+                    }}
+                    title="Change color"
+                  />
                   <span className="truncate">{s.name}</span>
                   <MoreHorizontal
                     className="w-3 h-3 flex-shrink-0 opacity-40 hover:opacity-100"
@@ -168,6 +237,14 @@ export default function FundsPanel({
                   onDuplicate={() => onDuplicateStrategy(s.id)}
                   onDelete={() => onDeleteStrategy(s.id)}
                   onClose={() => { setMenuOpenId(null); setMenuAnchorRect(null); }}
+                />
+              )}
+              {colorPickerId === s.id && colorPickerRect && (
+                <StrategyColorPicker
+                  anchorRect={colorPickerRect}
+                  currentColor={s.color}
+                  onChange={(color) => onChangeStrategyColor(s.id, color)}
+                  onClose={() => { setColorPickerId(null); setColorPickerRect(null); }}
                 />
               )}
             </div>

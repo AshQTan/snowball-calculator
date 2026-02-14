@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy } from './types';
+import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy } from './types';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -150,7 +150,16 @@ export default function App() {
       let n = prev.strategies.length + 1;
       while (existingNames.has(`Strategy ${n}`)) n++;
       const baseName = `Strategy ${n}`;
-      const newFunds = active.funds.map((f) => ({ ...f, id: crypto.randomUUID() }));
+      // Pick fund colors not already used by any existing strategy
+      const usedColors = new Set(prev.strategies.flatMap((s) => s.funds.map((f) => f.color)));
+      const availableColors = FUND_COLORS.filter((c) => !usedColors.has(c));
+      const newFunds = active.funds.map((f, i) => ({
+        ...f,
+        id: crypto.randomUUID(),
+        color: availableColors.length > 0
+          ? availableColors[i % availableColors.length]
+          : FUND_COLORS[(FUND_COLORS.indexOf(f.color) + active.funds.length) % FUND_COLORS.length],
+      }));
       const color = nextStrategyColor(prev.strategies);
       const strategy = createStrategy(baseName, color, newFunds);
       return {
@@ -208,6 +217,13 @@ export default function App() {
     setState((prev) => ({ ...prev, activeStrategyId: id }));
   }, []);
 
+  const changeStrategyColor = useCallback((id: string, color: string) => {
+    setState((prev) => ({
+      ...prev,
+      strategies: prev.strategies.map((s) => (s.id === id ? { ...s, color } : s)),
+    }));
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-neutral-950 transition-colors duration-500">
       <Header onShare={handleShare} onExportPDF={() => window.print()} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
@@ -228,6 +244,7 @@ export default function App() {
               onDeleteStrategy={deleteStrategy}
               onRenameStrategy={renameStrategy}
               onDuplicateStrategy={duplicateStrategy}
+              onChangeStrategyColor={changeStrategyColor}
             />
           </div>
 
