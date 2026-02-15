@@ -213,21 +213,33 @@ export default function ProjectionChartGrid({
     }, 50);
   }, []);
 
-  // Which strategy has the highest balance at the currently synced index?
-  const highestStrategyId = useMemo(() => {
-    if (syncedIndex === null) return null;
-    let maxBal = -Infinity;
-    let maxId: string | null = null;
+  // Which strategy has the highest value for each field at the currently synced index?
+  const highestByField = useMemo(() => {
+    const fields = ['balance', 'interest', 'contributions', 'startingBal'] as const;
+    const result = new Map<string, Record<string, boolean>>();
+    if (syncedIndex === null) return result;
+    // Find the max value per field across strategies
+    const maxPerField: Record<string, { val: number; id: string }> = {};
     for (const s of strategies) {
       const data = allChartData.get(s.id);
       if (!data || !data[syncedIndex]) continue;
-      const bal = (data[syncedIndex] as Record<string, number>).balance ?? 0;
-      if (bal > maxBal) {
-        maxBal = bal;
-        maxId = s.id;
+      const row = data[syncedIndex] as Record<string, number>;
+      for (const f of fields) {
+        const val = row[f] ?? 0;
+        if (!maxPerField[f] || val > maxPerField[f].val) {
+          maxPerField[f] = { val, id: s.id };
+        }
       }
     }
-    return maxId;
+    // Build per-strategy boolean maps
+    for (const s of strategies) {
+      const flags: Record<string, boolean> = {};
+      for (const f of fields) {
+        flags[f] = maxPerField[f]?.id === s.id;
+      }
+      result.set(s.id, flags);
+    }
+    return result;
   }, [syncedIndex, strategies, allChartData]);
 
   // Grid columns
@@ -438,7 +450,7 @@ export default function ProjectionChartGrid({
                         domain={[0, globalYMax]}
                       />
                       <Tooltip
-                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} isHighest={highestStrategyId === strategy.id} /> : <></>}
+                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} highestFields={highestByField.get(strategy.id)} /> : <></>}
                         cursor={isHovered ? { stroke: darkMode ? '#525252' : '#94a3b8', strokeDasharray: '3 3' } : { stroke: 'transparent' }}
                       />
                       {/* Synced crosshair from sibling chart – always mounted to avoid re-layout */}
@@ -518,7 +530,7 @@ export default function ProjectionChartGrid({
                         domain={[0, globalYMax]}
                       />
                       <Tooltip
-                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} isHighest={highestStrategyId === strategy.id} /> : <></>}
+                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} highestFields={highestByField.get(strategy.id)} /> : <></>}
                         cursor={isHovered ? undefined : { fill: 'transparent' }}
                       />
                       {/* Synced crosshair from sibling chart – always mounted to avoid re-layout */}
@@ -584,7 +596,7 @@ export default function ProjectionChartGrid({
                     timelineMode={timelineMode}
                     darkMode={darkMode}
                     barView={hasManyFunds ? effectiveStackView : undefined}
-                    isHighest={highestStrategyId === strategy.id}
+                    highestFields={highestByField.get(strategy.id)}
                   />
                 )}
               </div>
@@ -624,10 +636,10 @@ interface SyncedOverlayTooltipProps {
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
   barView?: BarViewMode;
-  isHighest?: boolean;
+  highestFields?: Record<string, boolean>;
 }
 
-function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timelineMode, barView, isHighest }: SyncedOverlayTooltipProps) {
+function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timelineMode, barView, highestFields }: SyncedOverlayTooltipProps) {
   const balance = data?.balance ?? 0;
   const label = data?.label as unknown as string ?? '';
   const pct = (v: number) => (balance > 0 ? `${Math.round((v / balance) * 100)}%` : '—');
@@ -656,7 +668,7 @@ function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timeli
         <div className="space-y-1">
           <div className="flex justify-between gap-3">
             <span className="text-[11px] text-slate-600 dark:text-neutral-300">Total</span>
-            <span className={`text-[11px] font-medium tabular-nums ${isHighest ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
+            <span className={`text-[11px] font-medium tabular-nums ${highestFields?.balance ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
           </div>
           {funds.length > 1 && barView === 'by-fund' ? (
             [...funds].reverse().map((f) => {
@@ -679,21 +691,21 @@ function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timeli
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+                  <span className={`text-[10px] tabular-nums ${highestFields?.interest ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-500 dark:text-neutral-400'}`}>{formatCurrency(data?.interest ?? 0)}</span>
                   <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.interest ?? 0)}</span>
                 </div>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+                  <span className={`text-[10px] tabular-nums ${highestFields?.contributions ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-500 dark:text-neutral-400'}`}>{formatCurrency(data?.contributions ?? 0)}</span>
                   <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.contributions ?? 0)}</span>
                 </div>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+                  <span className={`text-[10px] tabular-nums ${highestFields?.startingBal ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-500 dark:text-neutral-400'}`}>{formatCurrency(data?.startingBal ?? 0)}</span>
                   <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.startingBal ?? 0)}</span>
                 </div>
               </div>
@@ -722,10 +734,10 @@ interface GridTooltipProps {
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
   barView?: BarViewMode;
-  isHighest?: boolean;
+  highestFields?: Record<string, boolean>;
 }
 
-function GridTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView, isHighest }: GridTooltipProps) {
+function GridTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView, highestFields }: GridTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
@@ -739,7 +751,7 @@ function GridTooltip({ active, payload, label, funds, showReal, timelineMode, da
       <div className="space-y-1.5">
         <div className="flex justify-between gap-4">
           <span className="text-xs text-slate-600 dark:text-neutral-300">Total Balance</span>
-          <span className={`text-xs font-medium ${isHighest ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
+          <span className={`text-xs font-medium ${highestFields?.balance ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
         </div>
         {funds.length > 1 ? (
           barView === 'split' ? (
@@ -796,10 +808,10 @@ function GridTooltip({ active, payload, label, funds, showReal, timelineMode, da
               );
             })
           ) : (
-            <TooltipByType data={data} pct={pct} />
+            <TooltipByType data={data} pct={pct} highestFields={highestFields} />
           )
         ) : (
-          <TooltipByType data={data} pct={pct} />
+          <TooltipByType data={data} pct={pct} highestFields={highestFields} />
         )}
         {showReal && <p className="text-[10px] text-slate-400 dark:text-neutral-600 mt-1">In today's dollars</p>}
       </div>
@@ -807,27 +819,27 @@ function GridTooltip({ active, payload, label, funds, showReal, timelineMode, da
   );
 }
 
-function TooltipByType({ data, pct }: { data: Record<string, number>; pct: (v: number) => string }) {
+function TooltipByType({ data, pct, highestFields }: { data: Record<string, number>; pct: (v: number) => string; highestFields?: Record<string, boolean> }) {
   return (
     <>
       <div className="flex justify-between gap-4">
         <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+          <span className={`text-xs tabular-nums ${highestFields?.interest ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-600 dark:text-neutral-300'}`}>{formatCurrency(data?.interest ?? 0)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.interest ?? 0)}</span>
         </div>
       </div>
       <div className="flex justify-between gap-4">
         <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+          <span className={`text-xs tabular-nums ${highestFields?.contributions ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-600 dark:text-neutral-300'}`}>{formatCurrency(data?.contributions ?? 0)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.contributions ?? 0)}</span>
         </div>
       </div>
       <div className="flex justify-between gap-4">
         <span className="text-xs flex items-center gap-1"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting Bal.</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 dark:text-neutral-300 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+          <span className={`text-xs tabular-nums ${highestFields?.startingBal ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-600 dark:text-neutral-300'}`}>{formatCurrency(data?.startingBal ?? 0)}</span>
           <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{pct(data?.startingBal ?? 0)}</span>
         </div>
       </div>
