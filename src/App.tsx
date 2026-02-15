@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy } from './types';
+import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -144,24 +144,21 @@ export default function App() {
   const addStrategy = useCallback(() => {
     setState((prev) => {
       if (prev.strategies.length >= MAX_STRATEGIES) return prev;
-      const active = prev.strategies.find((s) => s.id === prev.activeStrategyId) || prev.strategies[0];
       // Generate unique name: Strategy 2, Strategy 3, etc.
       const existingNames = new Set(prev.strategies.map((s) => s.name));
       let n = prev.strategies.length + 1;
       while (existingNames.has(`Strategy ${n}`)) n++;
       const baseName = `Strategy ${n}`;
-      // Pick fund colors not already used by any existing strategy
+      // Start with a single default fund
       const usedColors = new Set(prev.strategies.flatMap((s) => s.funds.map((f) => f.color)));
       const availableColors = FUND_COLORS.filter((c) => !usedColors.has(c));
-      const newFunds = active.funds.map((f, i) => ({
-        ...f,
-        id: crypto.randomUUID(),
-        color: availableColors.length > 0
-          ? availableColors[i % availableColors.length]
-          : FUND_COLORS[(FUND_COLORS.indexOf(f.color) + active.funds.length) % FUND_COLORS.length],
-      }));
+      const fund = createFund(0);
+      fund.startingBalance = 1000;
+      if (availableColors.length > 0) {
+        fund.color = availableColors[0];
+      }
       const color = nextStrategyColor(prev.strategies);
-      const strategy = createStrategy(baseName, color, newFunds);
+      const strategy = createStrategy(baseName, color, [fund]);
       return {
         ...prev,
         strategies: [...prev.strategies, strategy],
