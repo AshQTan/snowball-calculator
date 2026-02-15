@@ -173,7 +173,7 @@ function ChevronStack({ count }: { count: number }) {
   );
 }
 
-export function MilestoneBadge({ milestone, chevronCount, onClick }: { milestone: Milestone; chevronCount: number; onClick?: () => void }) {
+export function MilestoneBadge({ milestone, chevronCount, onClick, strategyHits }: { milestone: Milestone; chevronCount: number; onClick?: () => void; strategyHits?: { name: string; color: string; year: number }[] }) {
   const isClickable = milestone.custom && onClick;
   return (
     <div
@@ -194,7 +194,18 @@ export function MilestoneBadge({ milestone, chevronCount, onClick }: { milestone
       {milestone.custom && (
         <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatCompact(milestone.amount)}</span>
       )}
-      <span className="text-[10px] text-slate-400 dark:text-neutral-500">yr {milestone.year}</span>
+      {strategyHits ? (
+        <span className="flex items-center gap-1.5">
+          {strategyHits.map((h) => (
+            <span key={h.name} className="flex items-center gap-0.5">
+              <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: h.color }} />
+              <span className="text-[10px] text-slate-400 dark:text-neutral-500">yr {h.year}</span>
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="text-[10px] text-slate-400 dark:text-neutral-500">yr {milestone.year}</span>
+      )}
     </div>
   );
 }

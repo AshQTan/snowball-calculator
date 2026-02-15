@@ -350,18 +350,56 @@ export default function App() {
                 )}
               </div>
             )}
-            {showMilestones && result.milestones.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {result.milestones.map((m, i) => (
-                  <MilestoneBadge
-                    key={m.amount}
-                    milestone={m}
-                    chevronCount={i + 1}
-                    onClick={m.customMilestoneId ? () => startEditingMilestone(m.customMilestoneId!) : undefined}
-                  />
-                ))}
-              </div>
-            )}
+            {showMilestones && (() => {
+              const isMulti = state.strategies.length > 1;
+              if (!isMulti) {
+                // Single strategy: same as before
+                if (result.milestones.length === 0) return null;
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {result.milestones.map((m, i) => (
+                      <MilestoneBadge
+                        key={m.amount}
+                        milestone={m}
+                        chevronCount={i + 1}
+                        onClick={m.customMilestoneId ? () => startEditingMilestone(m.customMilestoneId!) : undefined}
+                      />
+                    ))}
+                  </div>
+                );
+              }
+              // Multi strategy: global union of milestones
+              const globalMap = new Map<number, { milestone: Milestone; hits: { name: string; color: string; year: number }[] }>();
+              for (const s of state.strategies) {
+                const res = allResults.get(s.id);
+                if (!res) continue;
+                for (const m of res.milestones) {
+                  if (!globalMap.has(m.amount)) {
+                    globalMap.set(m.amount, { milestone: m, hits: [] });
+                  }
+                  globalMap.get(m.amount)!.hits.push({ name: s.name, color: s.color, year: m.year });
+                }
+              }
+              const sorted = [...globalMap.values()].sort((a, b) => a.milestone.amount - b.milestone.amount);
+              // Sort each milestone's strategy hits by year (earliest first)
+              for (const entry of sorted) {
+                entry.hits.sort((a, b) => a.year - b.year);
+              }
+              if (sorted.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {sorted.map((entry, i) => (
+                    <MilestoneBadge
+                      key={entry.milestone.amount}
+                      milestone={entry.milestone}
+                      chevronCount={i + 1}
+                      strategyHits={entry.hits}
+                      onClick={entry.milestone.customMilestoneId ? () => startEditingMilestone(entry.milestone.customMilestoneId!) : undefined}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
             {state.strategies.length > 1 ? (
               <ProjectionChartGrid
                 strategies={state.strategies}

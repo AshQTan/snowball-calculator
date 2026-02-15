@@ -9,10 +9,45 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceDot,
+  Label,
 } from 'recharts';
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
 import { Strategy, ProjectionResult, ChartMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
+
+// Milestone chevron label for overlay chart (strategy-colored)
+function OverlayMilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string; dx?: number }) {
+  const { viewBox, chevronCount = 1, icon, color = '#7dd3fc', dx = 0 } = props;
+  if (!viewBox) return null;
+  const cx = (viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x) + dx;
+  const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
+  if (icon) {
+    return (
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto">
+        {icon}
+      </text>
+    );
+  }
+  const clamped = Math.min(chevronCount, 7);
+  const spacing = 6;
+  const startY = cy - 14 - (clamped - 1) * spacing;
+  return (
+    <g>
+      {Array.from({ length: clamped }).map((_, i) => (
+        <polyline
+          key={i}
+          points={`${cx - 4},${startY + i * spacing + 3} ${cx},${startY + i * spacing} ${cx + 4},${startY + i * spacing + 3}`}
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      ))}
+    </g>
+  );
+}
 
 type CompareMetric = 'balance' | 'interest' | 'contributions';
 const METRIC_LABELS: Record<CompareMetric, string> = {
@@ -31,6 +66,7 @@ interface ProjectionChartComparisonProps {
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
   hideHeader?: boolean;
+  showMilestones?: boolean;
 }
 
 export default function ProjectionChartComparison({
@@ -43,6 +79,7 @@ export default function ProjectionChartComparison({
   darkMode,
   onChartModeChange,
   hideHeader,
+  showMilestones,
 }: ProjectionChartComparisonProps) {
   const [metric, setMetric] = useState<CompareMetric>('balance');
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
@@ -92,6 +129,45 @@ export default function ProjectionChartComparison({
     return Math.ceil(total / 12) - 1;
   }, [chartData]);
 
+  // Compute milestone markers per strategy for the overlay chart
+  const milestoneMarkers = useMemo(() => {
+    if (!showMilestones) return [];
+    // Build global chevron index across all strategies
+    const globalAmounts = new Set<number>();
+    for (const s of strategies) {
+      const res = allResults.get(s.id);
+      if (!res) continue;
+      for (const m of res.milestones) globalAmounts.add(m.amount);
+    }
+    const sortedAmounts = [...globalAmounts].sort((a, b) => a - b);
+    const chevronByAmount = new Map<number, number>();
+    sortedAmounts.forEach((amount, i) => chevronByAmount.set(amount, i + 1));
+
+    const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; strategyIndex: number; totalStrategies: number }[] = [];
+    for (let si = 0; si < strategies.length; si++) {
+      const s = strategies[si];
+      const res = allResults.get(s.id);
+      if (!res) continue;
+      for (const m of res.milestones) {
+        const row = res.schedule.find((r) => r.year === m.year);
+        if (!row) continue;
+        const xLabel = timelineMode === 'retirement' && row.age ? `${row.age}` : `${m.year}`;
+        const value = showReal ? row.realEndBalance : row.endBalance;
+        markers.push({
+          strategyId: s.id,
+          color: s.color,
+          xLabel,
+          value,
+          chevronCount: chevronByAmount.get(m.amount) ?? 1,
+          icon: m.icon,
+          strategyIndex: si,
+          totalStrategies: strategies.length,
+        });
+      }
+    }
+    return markers;
+  }, [strategies, allResults, showMilestones, showReal, timelineMode]);
+
   return (
     <div className={hideHeader ? '' : 'card'}>
       {!hideHeader && <div className="flex items-center justify-between mb-4">
@@ -123,18 +199,18 @@ export default function ProjectionChartComparison({
           {/* Line/Bar toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('line')}
-              title="Line chart"
             >
               <LineChartIcon className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line chart to compare growth trends across strategies.</div>
             </button>
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('bar')}
-              title="Bar chart"
             >
               <BarChart3 className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as grouped bars to compare values across strategies for each year.</div>
             </button>
           </div>
         </div>
@@ -180,6 +256,19 @@ export default function ProjectionChartComparison({
                   activeDot={{ r: 4, strokeWidth: 0 }}
                 />
               ))}
+              {metric === 'balance' && milestoneMarkers.map((m) => (
+                <ReferenceDot
+                  key={`${m.strategyId}_${m.chevronCount}`}
+                  x={m.xLabel}
+                  y={m.value}
+                  r={3}
+                  fill={m.color}
+                  stroke={m.color}
+                  strokeWidth={0}
+                >
+                  <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} />} />
+                </ReferenceDot>
+              ))}
             </LineChart>
           ) : (
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -216,6 +305,22 @@ export default function ProjectionChartComparison({
                   radius={[2, 2, 0, 0]}
                 />
               ))}
+              {metric === 'balance' && milestoneMarkers.map((m) => {
+                // Offset chevrons horizontally per strategy so they don't overlap
+                const dx = (m.strategyIndex - (m.totalStrategies - 1) / 2) * 12;
+                return (
+                  <ReferenceDot
+                    key={`${m.strategyId}_${m.chevronCount}`}
+                    x={m.xLabel}
+                    y={m.value}
+                    r={0}
+                    fill="none"
+                    stroke="none"
+                  >
+                    <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} dx={dx} />} />
+                  </ReferenceDot>
+                );
+              })}
             </BarChart>
           )}
         </ResponsiveContainer>
@@ -261,6 +366,8 @@ function ComparisonTooltip({
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
 
+  const fields = ['balance', 'interest', 'contributions', 'startingBal'] as const;
+
   // Build strategy rows sorted by balance descending
   const rows = strategies
     .map((s) => ({
@@ -272,18 +379,22 @@ function ComparisonTooltip({
     }))
     .sort((a, b) => b.balance - a.balance);
 
-  const hasTwoStrategies = rows.length === 2;
-  const diff = hasTwoStrategies ? rows[0].balance - rows[1].balance : 0;
-  const diffPct = hasTwoStrategies && rows[1].balance > 0
-    ? ((rows[0].balance - rows[1].balance) / rows[1].balance) * 100
-    : 0;
+  // Compute which strategy has the highest value per field
+  const highestByField: Record<string, string> = {};
+  for (const f of fields) {
+    let maxVal = -Infinity;
+    let maxId = '';
+    for (const r of rows) {
+      if (r[f] > maxVal) {
+        maxVal = r[f];
+        maxId = r.strategy.id;
+      }
+    }
+    highestByField[f] = maxId;
+  }
 
-  const fmtPct = (a: number, b: number) => {
-    if (b === 0) return '';
-    const pct = ((a - b) / Math.abs(b)) * 100;
-    const sign = pct >= 0 ? '+' : '';
-    return `${sign}${pct.toFixed(1)}%`;
-  };
+  const isHighest = (strategyId: string, field: string) =>
+    strategies.length > 1 && highestByField[field] === strategyId;
 
   return (
     <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded-lg p-3 shadow-xl min-w-[240px]">
@@ -291,7 +402,7 @@ function ComparisonTooltip({
         {timelineMode === 'retirement' ? `Age ${label}` : `Year ${label}`}
       </p>
       <div className="space-y-3">
-        {rows.map((r, idx) => (
+        {rows.map((r) => (
           <div key={r.strategy.id} className="space-y-1">
             {/* Strategy header */}
             <div className="flex justify-between gap-4">
@@ -299,53 +410,27 @@ function ComparisonTooltip({
                 <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: r.strategy.color }} />
                 {r.strategy.name}
               </span>
-              <span className="text-xs font-semibold text-slate-900 dark:text-white tabular-nums">
+              <span className={`text-xs font-semibold tabular-nums ${isHighest(r.strategy.id, 'balance') ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                 {formatCurrency(r.balance)}
               </span>
             </div>
             {/* Breakdown */}
             <div className="ml-3.5 space-y-0.5">
               {([
-                { label: 'Interest', value: r.interest, refValue: idx === 0 && hasTwoStrategies ? null : rows[0].interest },
-                { label: 'Contributions', value: r.contributions, refValue: idx === 0 && hasTwoStrategies ? null : rows[0].contributions },
-                { label: 'Starting Bal.', value: r.startingBal, refValue: idx === 0 && hasTwoStrategies ? null : rows[0].startingBal },
+                { label: 'Interest', field: 'interest', value: r.interest },
+                { label: 'Contributions', field: 'contributions', value: r.contributions },
+                { label: 'Starting Bal.', field: 'startingBal', value: r.startingBal },
               ] as const).map((item) => (
                 <div key={item.label} className="flex justify-between gap-4">
                   <span className="text-[10px] text-slate-500 dark:text-neutral-400">{item.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">
-                      {formatCurrency(item.value)}
-                    </span>
-                    {item.refValue !== null && item.refValue !== undefined && (
-                      <span className={`text-[10px] tabular-nums ${
-                        item.value < item.refValue
-                          ? 'text-red-500 dark:text-red-400'
-                          : item.value > item.refValue
-                            ? 'text-emerald-500 dark:text-emerald-400'
-                            : 'text-slate-400 dark:text-neutral-500'
-                      }`}>
-                        {fmtPct(item.value, item.refValue)}
-                      </span>
-                    )}
-                  </div>
+                  <span className={`text-[10px] tabular-nums ${isHighest(r.strategy.id, item.field) ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-500 dark:text-neutral-400'}`}>
+                    {formatCurrency(item.value)}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         ))}
-        {/* Overall difference row for exactly 2 strategies */}
-        {hasTwoStrategies && (
-          <div className="border-t border-slate-200 dark:border-neutral-700 pt-1.5">
-            <div className="flex justify-between gap-4">
-              <span className="text-[11px] text-slate-500 dark:text-neutral-400">Difference</span>
-              <span className={`text-[11px] font-medium tabular-nums ${
-                diff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-              }`}>
-                {diff >= 0 ? '+' : ''}{formatCurrency(diff)} ({diffPct >= 0 ? '+' : ''}{diffPct.toFixed(1)}%)
-              </span>
-            </div>
-          </div>
-        )}
         {showReal && <p className="text-[10px] text-slate-400 dark:text-neutral-600 mt-1">In today's dollars</p>}
       </div>
     </div>

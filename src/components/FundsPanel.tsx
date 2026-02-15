@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, MoreHorizontal, Copy, Trash2, Pencil } from 'lucide-react';
-import { Fund, Strategy, MAX_STRATEGIES, STRATEGY_COLORS, createFund } from '../types';
+import { Fund, Strategy, MAX_STRATEGIES, STRATEGY_COLORS, FUND_COLORS, createFund } from '../types';
 import FundConfigurator from './FundConfigurator';
 
 interface FundsPanelProps {
@@ -138,7 +138,11 @@ export default function FundsPanel({
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const addFund = () => {
-    onChange([...funds, createFund(funds.length)]);
+    const newFund = createFund(funds.length);
+    const usedColors = new Set(funds.map((f) => f.color));
+    const available = FUND_COLORS.find((c) => !usedColors.has(c));
+    if (available) newFund.color = available;
+    onChange([...funds, newFund]);
   };
 
   const updateFund = (id: string, updates: Partial<Fund>) => {

@@ -45,12 +45,33 @@ interface ProjectionChartGridProps {
   showMilestones: boolean;
 }
 
+// Legend chevrons for the milestone legend row
+function LegendChevrons({ count, color = '#7dd3fc' }: { count: number; color?: string }) {
+  const clamped = Math.min(count, 7);
+  const h = 4 + clamped * 5;
+  return (
+    <svg width="12" height={h} viewBox={`0 0 12 ${h}`} fill="none" className="flex-shrink-0">
+      {Array.from({ length: clamped }).map((_, i) => (
+        <polyline
+          key={i}
+          points={`1,${h - i * 5 - 1} 6,${h - i * 5 - 5} 11,${h - i * 5 - 1}`}
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      ))}
+    </svg>
+  );
+}
+
 // Milestone chevron label colored per strategy
 function GridMilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string }) {
   const { viewBox, chevronCount = 1, icon, color = '#7dd3fc' } = props;
   if (!viewBox) return null;
-  const cx = viewBox.width ? viewBox.x + viewBox.width / 2 : viewBox.x;
-  const cy = viewBox.height ? viewBox.y + viewBox.height / 2 : viewBox.y;
+  const cx = viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x;
+  const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
   if (icon) {
     return (
       <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto">
@@ -177,24 +198,43 @@ export default function ProjectionChartGrid({
   // Any strategy has many funds?
   const anyHasManyFunds = strategies.some((s) => s.funds.length > 1);
 
-  // Milestone data per strategy
+  // Milestone data per strategy — chevronCounts are globally consistent
   const allMilestoneData = useMemo(() => {
     if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
+
+    // 1. Collect the global union of all milestones reached across any strategy
+    const globalMilestones = new Map<number, { icon?: string; label: string }>();
+    for (const s of strategies) {
+      const res = allResults.get(s.id);
+      if (!res) continue;
+      for (const m of res.milestones) {
+        if (!globalMilestones.has(m.amount)) {
+          globalMilestones.set(m.amount, { icon: m.icon, label: m.label });
+        }
+      }
+    }
+
+    // 2. Sort by amount and assign a global chevron index
+    const sortedAmounts = [...globalMilestones.keys()].sort((a, b) => a - b);
+    const chevronByAmount = new Map<number, number>();
+    sortedAmounts.forEach((amount, i) => chevronByAmount.set(amount, i + 1));
+
+    // 3. Build per-strategy milestone data using global chevron counts
     const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
     for (const s of strategies) {
       const res = allResults.get(s.id);
       if (!res) continue;
       const hasManyFunds = s.funds.length > 1;
       const useNominal = hasManyFunds && stackView !== 'by-type';
-      map.set(
-        s.id,
-        res.milestones.map((m, i) => {
+      const entries = res.milestones
+        .map((m) => {
           const row = res.schedule.find((r) => r.year === m.year);
           const balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
           const xLabel = timelineMode === 'retirement' && row?.age ? `${row.age}` : `${m.year}`;
-          return { amount: m.amount, xLabel, balance, chevronCount: i + 1, icon: m.icon, label: m.label };
-        }),
-      );
+          return { amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label };
+        })
+        .sort((a, b) => a.amount - b.amount);
+      map.set(s.id, entries);
     }
     return map;
   }, [strategies, allResults, showMilestones, showReal, timelineMode, stackView]);
@@ -265,17 +305,34 @@ export default function ProjectionChartGrid({
             )}
             <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
               <button
-                className="p-1.5 rounded-md transition-all text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400"
+                className="p-1.5 rounded-md transition-all text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400 group relative"
                 onClick={() => setCompareView('side-by-side')}
-                title="Side by side"
               >
                 <LayoutGrid className="w-4 h-4" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Show each strategy in its own chart, side by side, with synced axes for easy comparison.</div>
               </button>
               <button
-                className="p-1.5 rounded-md transition-all bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm"
-                title="Overlay"
+                className="p-1.5 rounded-md transition-all bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm group relative"
               >
                 <Layers className="w-4 h-4" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Overlay all strategies on a single chart to directly compare their growth curves.</div>
+              </button>
+            </div>
+            {/* Line / Bar toggle */}
+            <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
+              <button
+                className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onChartModeChange('line')}
+              >
+                <LineChart className="w-4 h-4" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line/area chart showing growth trends over time.</div>
+              </button>
+              <button
+                className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onChartModeChange('bar')}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as stacked bars showing the composition of each year's balance.</div>
               </button>
             </div>
           </div>
@@ -290,6 +347,7 @@ export default function ProjectionChartGrid({
           darkMode={darkMode}
           onChartModeChange={onChartModeChange}
           hideHeader
+          showMilestones={showMilestones}
         />
       </div>
     );
@@ -334,34 +392,34 @@ export default function ProjectionChartGrid({
           {/* Side-by-side / Overlay toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
-              className="p-1.5 rounded-md transition-all bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm"
-              title="Side by side"
+              className="p-1.5 rounded-md transition-all bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm group relative"
             >
               <LayoutGrid className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Show each strategy in its own chart, side by side, with synced axes for easy comparison.</div>
             </button>
             <button
-              className="p-1.5 rounded-md transition-all text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400"
+              className="p-1.5 rounded-md transition-all text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400 group relative"
               onClick={() => setCompareView('overlay')}
-              title="Overlay"
             >
               <Layers className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Overlay all strategies on a single chart to directly compare their growth curves.</div>
             </button>
           </div>
           {/* Line / Bar toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('line')}
-              title="Line chart"
             >
               <LineChart className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line/area chart showing growth trends over time.</div>
             </button>
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('bar')}
-              title="Bar chart"
             >
               <BarChart3 className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as stacked bars showing the composition of each year's balance.</div>
             </button>
           </div>
         </div>
@@ -620,6 +678,31 @@ export default function ProjectionChartGrid({
             <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
           </>
         )}
+        {/* Milestone legend entries */}
+        {showMilestones && (() => {
+          // Collect unique milestones by amount (deduped across strategies)
+          const seen = new Set<number>();
+          const entries: { amount: number; chevronCount: number; icon?: string; label: string }[] = [];
+          for (const milestones of allMilestoneData.values()) {
+            for (const m of milestones) {
+              if (!seen.has(m.amount)) {
+                seen.add(m.amount);
+                entries.push({ amount: m.amount, chevronCount: m.chevronCount, icon: m.icon, label: m.label });
+              }
+            }
+          }
+          entries.sort((a, b) => a.amount - b.amount);
+          return entries.map((m) => (
+            <div key={m.amount} className="flex items-center gap-1.5">
+              {m.icon ? (
+                <span className="text-sm leading-none">{m.icon}</span>
+              ) : (
+                <LegendChevrons count={m.chevronCount} />
+              )}
+              <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
+            </div>
+          ));
+        })()}
       </div>
     </div>
   );

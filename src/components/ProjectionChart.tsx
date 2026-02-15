@@ -34,8 +34,8 @@ interface ProjectionChartProps {
 function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string }) {
   const { viewBox, chevronCount = 1, icon } = props;
   if (!viewBox) return null;
-  const cx = viewBox.width ? viewBox.x + viewBox.width / 2 : viewBox.x;
-  const cy = viewBox.height ? viewBox.y + viewBox.height / 2 : viewBox.y;
+  const cx = viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x;
+  const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
   if (icon) {
     return (
       <text x={cx} y={cy - 14} textAnchor="middle" fontSize="14" dominantBaseline="auto">
@@ -230,18 +230,18 @@ export default function ProjectionChart({
           )}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('line')}
-              title="Line chart"
             >
               <LineChart className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line/area chart showing growth trends over time.</div>
             </button>
             <button
-              className={`p-1.5 rounded-md transition-all ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+              className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('bar')}
-              title="Bar chart"
             >
               <BarChart3 className="w-4 h-4" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as stacked bars showing the composition of each year's balance.</div>
             </button>
           </div>
         </div>
