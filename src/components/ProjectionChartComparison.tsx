@@ -379,18 +379,26 @@ function ComparisonTooltip({
     }))
     .sort((a, b) => b.balance - a.balance);
 
-  // Compute which strategy has the highest value per field
+  // Compute which strategy has the highest value per field (only if uniquely highest)
   const highestByField: Record<string, string> = {};
+  const EPS = 1e-6;
   for (const f of fields) {
     let maxVal = -Infinity;
-    let maxId = '';
     for (const r of rows) {
       if (r[f] > maxVal) {
         maxVal = r[f];
+      }
+    }
+    // Count how many strategies tie for the max (within EPS)
+    let count = 0;
+    let maxId = '';
+    for (const r of rows) {
+      if (Math.abs(r[f] - maxVal) <= EPS) {
+        count += 1;
         maxId = r.strategy.id;
       }
     }
-    highestByField[f] = maxId;
+    highestByField[f] = count === 1 ? maxId : '';
   }
 
   const isHighest = (strategyId: string, field: string) =>
