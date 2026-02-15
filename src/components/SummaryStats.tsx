@@ -47,6 +47,42 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
   );
 }
 
+function InlineTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0, below: false });
+  const ref = useRef<HTMLElement | null>(null);
+
+  const handleEnter = useCallback(() => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const below = spaceAbove < 120;
+      setPos({ x: rect.left + rect.width / 2, y: below ? rect.bottom + 8 : rect.top - 8, below });
+      setShow(true);
+    }
+  }, []);
+
+  return (
+    <span
+      ref={ref as any}
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+      className="inline-flex items-center"
+    >
+      {children}
+      {show && createPortal(
+        <div
+          className="fixed z-[9999] max-w-xs px-2 py-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded text-xs text-slate-600 dark:text-neutral-300 shadow-lg pointer-events-none"
+          style={{ top: pos.y, left: pos.x, transform: pos.below ? 'translateX(-50%)' : 'translate(-50%, -100%)' }}
+        >
+          {text}
+        </div>,
+        document.body
+      )}
+    </span>
+  );
+}
+
 interface SummaryStatsProps {
   result: ProjectionResult;
   showReal: boolean;
@@ -85,7 +121,9 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
                 <div className="mt-1 space-y-1">
                   {items.map((it) => (
                       <div key={it.strategy.id} className="flex items-center justify-center">
-                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.final)}</span>
+                        <InlineTooltip text={it.strategy.name}>
+                          <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.final)}</span>
+                        </InlineTooltip>
                       </div>
                     ))}
                 </div>
@@ -97,7 +135,9 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
                 <div className="mt-1 space-y-1">
                   {items.map((it) => (
                     <div key={it.strategy.id} className="flex items-center justify-center">
-                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.invested)}</span>
+                      <InlineTooltip text={it.strategy.name}>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.invested)}</span>
+                      </InlineTooltip>
                     </div>
                   ))}
                 </div>
@@ -109,7 +149,9 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
                 <div className="mt-1 space-y-1">
                   {items.map((it) => (
                     <div key={it.strategy.id} className="flex items-center justify-center">
-                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.interest)}</span>
+                      <InlineTooltip text={it.strategy.name}>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.interest)}</span>
+                      </InlineTooltip>
                     </div>
                   ))}
                 </div>
@@ -121,7 +163,9 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
                 <div className="mt-1 space-y-1">
                   {items.map((it) => (
                     <div key={it.strategy.id} className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatPercent(it.cagr)}</span>
+                      <InlineTooltip text={it.strategy.name}>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatPercent(it.cagr)}</span>
+                      </InlineTooltip>
                       <span className="text-[11px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(it.doubling)}</span>
                     </div>
                   ))}
