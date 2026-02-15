@@ -258,16 +258,39 @@ export default function ProjectionChartGrid({
     const fields = ['balance', 'interest', 'contributions', 'startingBal'] as const;
     const result = new Map<string, Record<string, boolean>>();
     if (syncedIndex === null) return result;
-    // Find the max value per field across strategies
-    const maxPerField: Record<string, { val: number; id: string }> = {};
+    // Find the max value per field across strategies and ensure uniqueness (no ties)
+    const EPS = 1e-6;
+    const maxPerField: Record<string, number> = {};
+    for (const f of fields) {
+      maxPerField[f] = -Infinity;
+    }
     for (const s of strategies) {
       const data = allChartData.get(s.id);
       if (!data || !data[syncedIndex]) continue;
       const row = data[syncedIndex] as Record<string, number>;
       for (const f of fields) {
         const val = row[f] ?? 0;
-        if (!maxPerField[f] || val > maxPerField[f].val) {
-          maxPerField[f] = { val, id: s.id };
+        if (val > maxPerField[f]) {
+          maxPerField[f] = val;
+        }
+      }
+    }
+    // Count ties and assign only if unique max
+    const countPerField: Record<string, number> = {};
+    const idOfMax: Record<string, string> = {};
+    for (const f of fields) {
+      countPerField[f] = 0;
+      idOfMax[f] = '';
+    }
+    for (const s of strategies) {
+      const data = allChartData.get(s.id);
+      if (!data || !data[syncedIndex]) continue;
+      const row = data[syncedIndex] as Record<string, number>;
+      for (const f of fields) {
+        const val = row[f] ?? 0;
+        if (Math.abs(val - maxPerField[f]) <= EPS) {
+          countPerField[f] += 1;
+          idOfMax[f] = s.id; // last matching id (only used if count==1)
         }
       }
     }
@@ -275,7 +298,7 @@ export default function ProjectionChartGrid({
     for (const s of strategies) {
       const flags: Record<string, boolean> = {};
       for (const f of fields) {
-        flags[f] = maxPerField[f]?.id === s.id;
+        flags[f] = countPerField[f] === 1 && idOfMax[f] === s.id;
       }
       result.set(s.id, flags);
     }
