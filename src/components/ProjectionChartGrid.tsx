@@ -10,6 +10,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceDot,
+  Label,
 } from 'recharts';
 import { BarChart3, LineChart, Layers, LayoutGrid, ChevronDown } from 'lucide-react';
 import { Strategy, ProjectionResult, Fund, ChartMode, YearBreakdown } from '../types';
@@ -40,6 +42,40 @@ interface ProjectionChartGridProps {
   chartMode: ChartMode;
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
+  showMilestones: boolean;
+}
+
+// Milestone chevron label colored per strategy
+function GridMilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string }) {
+  const { viewBox, chevronCount = 1, icon, color = '#7dd3fc' } = props;
+  if (!viewBox) return null;
+  const cx = viewBox.width ? viewBox.x + viewBox.width / 2 : viewBox.x;
+  const cy = viewBox.height ? viewBox.y + viewBox.height / 2 : viewBox.y;
+  if (icon) {
+    return (
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto">
+        {icon}
+      </text>
+    );
+  }
+  const clamped = Math.min(chevronCount, 7);
+  const spacing = 6;
+  const startY = cy - 14 - (clamped - 1) * spacing;
+  return (
+    <g>
+      {Array.from({ length: clamped }).map((_, i) => (
+        <polyline
+          key={i}
+          points={`${cx - 4},${startY + i * spacing + 3} ${cx},${startY + i * spacing} ${cx + 4},${startY + i * spacing + 3}`}
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      ))}
+    </g>
+  );
 }
 
 // Build chart data for one strategy (same logic as ProjectionChart)
@@ -91,6 +127,7 @@ export default function ProjectionChartGrid({
   chartMode,
   darkMode,
   onChartModeChange,
+  showMilestones,
 }: ProjectionChartGridProps) {
   const [compareView, setCompareView] = useState<CompareView>('side-by-side');
   const [stackView, setStackView] = useState<BarViewMode>('by-type');
@@ -99,7 +136,7 @@ export default function ProjectionChartGrid({
   const [hoveredStrategyId, setHoveredStrategyId] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const gridColor = darkMode ? '#262626' : '#e2e8f0';
+  const gridColor = darkMode ? '#404040' : '#cbd5e1';
   const tickColor = darkMode ? '#737373' : '#64748b';
   const axisColor = darkMode ? '#262626' : '#e2e8f0';
 
@@ -140,6 +177,28 @@ export default function ProjectionChartGrid({
   // Any strategy has many funds?
   const anyHasManyFunds = strategies.some((s) => s.funds.length > 1);
 
+  // Milestone data per strategy
+  const allMilestoneData = useMemo(() => {
+    if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
+    const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
+    for (const s of strategies) {
+      const res = allResults.get(s.id);
+      if (!res) continue;
+      const hasManyFunds = s.funds.length > 1;
+      const useNominal = hasManyFunds && stackView !== 'by-type';
+      map.set(
+        s.id,
+        res.milestones.map((m, i) => {
+          const row = res.schedule.find((r) => r.year === m.year);
+          const balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
+          const xLabel = timelineMode === 'retirement' && row?.age ? `${row.age}` : `${m.year}`;
+          return { amount: m.amount, xLabel, balance, chevronCount: i + 1, icon: m.icon, label: m.label };
+        }),
+      );
+    }
+    return map;
+  }, [strategies, allResults, showMilestones, showReal, timelineMode, stackView]);
+
   const handleMouseMove = useCallback((strategyId: string, e: { activeTooltipIndex?: number }) => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     if (e?.activeTooltipIndex !== undefined && e.activeTooltipIndex >= 0) {
@@ -153,6 +212,23 @@ export default function ProjectionChartGrid({
       setHoveredStrategyId(null);
     }, 50);
   }, []);
+
+  // Which strategy has the highest balance at the currently synced index?
+  const highestStrategyId = useMemo(() => {
+    if (syncedIndex === null) return null;
+    let maxBal = -Infinity;
+    let maxId: string | null = null;
+    for (const s of strategies) {
+      const data = allChartData.get(s.id);
+      if (!data || !data[syncedIndex]) continue;
+      const bal = (data[syncedIndex] as Record<string, number>).balance ?? 0;
+      if (bal > maxBal) {
+        maxBal = bal;
+        maxId = s.id;
+      }
+    }
+    return maxId;
+  }, [syncedIndex, strategies, allChartData]);
 
   // Grid columns
   const gridCols =
@@ -362,7 +438,7 @@ export default function ProjectionChartGrid({
                         domain={[0, globalYMax]}
                       />
                       <Tooltip
-                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} /> : <></>}
+                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} isHighest={highestStrategyId === strategy.id} /> : <></>}
                         cursor={isHovered ? { stroke: darkMode ? '#525252' : '#94a3b8', strokeDasharray: '3 3' } : { stroke: 'transparent' }}
                       />
                       {/* Synced crosshair from sibling chart – always mounted to avoid re-layout */}
@@ -404,6 +480,19 @@ export default function ProjectionChartGrid({
                           <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill={`url(#interestGrad_${strategy.id})`} dot={false} />
                         </>
                       )}
+                      {(allMilestoneData.get(strategy.id) || []).map((m) => (
+                        <ReferenceDot
+                          key={m.amount}
+                          x={m.xLabel}
+                          y={m.balance}
+                          r={3}
+                          fill={strategy.color}
+                          stroke={strategy.color}
+                          strokeWidth={0}
+                        >
+                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={strategy.color} />} />
+                        </ReferenceDot>
+                      ))}
                     </AreaChart>
                   ) : (
                     <BarChart
@@ -429,7 +518,7 @@ export default function ProjectionChartGrid({
                         domain={[0, globalYMax]}
                       />
                       <Tooltip
-                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} /> : <></>}
+                        content={isHovered ? <GridTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? effectiveStackView : undefined} isHighest={highestStrategyId === strategy.id} /> : <></>}
                         cursor={isHovered ? undefined : { fill: 'transparent' }}
                       />
                       {/* Synced crosshair from sibling chart – always mounted to avoid re-layout */}
@@ -469,6 +558,18 @@ export default function ProjectionChartGrid({
                           <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
                         </>
                       )}
+                      {(allMilestoneData.get(strategy.id) || []).map((m) => (
+                        <ReferenceDot
+                          key={m.amount}
+                          x={m.xLabel}
+                          y={m.balance}
+                          r={0}
+                          fill="none"
+                          stroke="none"
+                        >
+                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={strategy.color} />} />
+                        </ReferenceDot>
+                      ))}
                     </BarChart>
                   )}
                 </ResponsiveContainer>
@@ -483,6 +584,7 @@ export default function ProjectionChartGrid({
                     timelineMode={timelineMode}
                     darkMode={darkMode}
                     barView={hasManyFunds ? effectiveStackView : undefined}
+                    isHighest={highestStrategyId === strategy.id}
                   />
                 )}
               </div>
@@ -522,11 +624,13 @@ interface SyncedOverlayTooltipProps {
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
   barView?: BarViewMode;
+  isHighest?: boolean;
 }
 
-function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timelineMode, barView }: SyncedOverlayTooltipProps) {
+function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timelineMode, barView, isHighest }: SyncedOverlayTooltipProps) {
   const balance = data?.balance ?? 0;
   const label = data?.label as unknown as string ?? '';
+  const pct = (v: number) => (balance > 0 ? `${Math.round((v / balance) * 100)}%` : '—');
 
   // Approximate x position: chart has margin left ~0 + YAxis width ~55px, margin right ~10px
   // The plot area starts after the Y-axis and ends before right margin
@@ -552,7 +656,7 @@ function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timeli
         <div className="space-y-1">
           <div className="flex justify-between gap-3">
             <span className="text-[11px] text-slate-600 dark:text-neutral-300">Total</span>
-            <span className="text-[11px] font-medium text-slate-900 dark:text-white tabular-nums">{formatCurrency(balance)}</span>
+            <span className={`text-[11px] font-medium tabular-nums ${isHighest ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
           </div>
           {funds.length > 1 && barView === 'by-fund' ? (
             [...funds].reverse().map((f) => {
@@ -563,7 +667,10 @@ function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timeli
                     <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: f.color }} />
                     {f.name}
                   </span>
-                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(val)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(val)}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(val)}</span>
+                  </div>
                 </div>
               );
             })
@@ -571,15 +678,24 @@ function SyncedOverlayTooltip({ data, dataLength, index, funds, showReal, timeli
             <>
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_INTEREST }} />Interest</span>
-                <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.interest ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.interest ?? 0)}</span>
+                </div>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_CONTRIBUTIONS }} />Contributions</span>
-                <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.contributions ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.contributions ?? 0)}</span>
+                </div>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-[10px] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: COLOR_STARTING }} />Starting</span>
-                <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(data?.startingBal ?? 0)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[28px] text-right">{pct(data?.startingBal ?? 0)}</span>
+                </div>
               </div>
             </>
           )}
@@ -606,9 +722,10 @@ interface GridTooltipProps {
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
   barView?: BarViewMode;
+  isHighest?: boolean;
 }
 
-function GridTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView }: GridTooltipProps) {
+function GridTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView, isHighest }: GridTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
@@ -622,7 +739,7 @@ function GridTooltip({ active, payload, label, funds, showReal, timelineMode, da
       <div className="space-y-1.5">
         <div className="flex justify-between gap-4">
           <span className="text-xs text-slate-600 dark:text-neutral-300">Total Balance</span>
-          <span className="text-xs font-medium text-slate-900 dark:text-white">{formatCurrency(balance)}</span>
+          <span className={`text-xs font-medium ${isHighest ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(balance)}</span>
         </div>
         {funds.length > 1 ? (
           barView === 'split' ? (

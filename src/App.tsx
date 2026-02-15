@@ -372,6 +372,7 @@ export default function App() {
                 chartMode={state.chartMode}
                 darkMode={darkMode}
                 onChartModeChange={setChartMode}
+                showMilestones={showMilestones}
               />
             ) : (
               <ProjectionChart
