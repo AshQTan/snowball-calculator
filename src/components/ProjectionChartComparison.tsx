@@ -185,11 +185,10 @@ export default function ProjectionChartComparison({
             {(['balance', 'interest', 'contributions'] as CompareMetric[]).map((m) => (
               <button
                 key={m}
-                className={`px-2 py-1 text-[11px] rounded-md transition-all ${
-                  metric === m
-                    ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm font-medium'
-                    : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'
-                }`}
+                className={`px-2 py-1 text-[11px] rounded-md transition-all ${metric === m
+                  ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm font-medium'
+                  : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'
+                  }`}
                 onClick={() => setMetric(m)}
               >
                 {METRIC_LABELS[m]}
@@ -203,14 +202,14 @@ export default function ProjectionChartComparison({
               onClick={() => onChartModeChange('line')}
             >
               <LineChartIcon className="w-4 h-4" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line chart to compare growth trends across strategies.</div>
+              <div className="absolute bottom-full right-0 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as a smooth line chart to compare growth trends across strategies.</div>
             </button>
             <button
               className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'bar' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
               onClick={() => onChartModeChange('bar')}
             >
               <BarChart3 className="w-4 h-4" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as grouped bars to compare values across strategies for each year.</div>
+              <div className="absolute bottom-full right-0 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Display as grouped bars to compare values across strategies for each year.</div>
             </button>
           </div>
         </div>

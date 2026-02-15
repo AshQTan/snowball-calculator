@@ -100,11 +100,10 @@ export default function CompositionChart({
                 {(['combined', 'by-fund'] as CompView[]).map((mode) => (
                   <button
                     key={mode}
-                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                      compView === mode
+                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${compView === mode
                         ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
-                    }`}
+                      }`}
                     onClick={() => setCompView(mode)}
                   >
                     {COMP_VIEW_LABELS[mode]}
@@ -294,11 +293,10 @@ function StrategyComparison({
           return (
             <button
               key={strategy.id}
-              className={`w-full text-left transition-all rounded-md px-2 py-1.5 ${
-                isActive
+              className={`w-full text-left transition-all rounded-md px-2 py-1.5 ${isActive
                   ? 'bg-slate-100 dark:bg-neutral-800/60 ring-1 ring-slate-300 dark:ring-neutral-600'
                   : 'hover:bg-slate-50 dark:hover:bg-neutral-800/30'
-              }`}
+                }`}
               onClick={() => onSwitchStrategy?.(strategy.id)}
             >
               <div className="flex items-center justify-between mb-1">

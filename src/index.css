@@ -79,7 +79,7 @@
 .dark ::-webkit-scrollbar-thumb:hover { background: #525252; }
 
 /* recharts */
-.recharts-tooltip-wrapper { outline: none !important; }
+.recharts-tooltip-wrapper { outline: none !important; z-index: 9999 !important; }
 
 /* color swatch button */
 .color-swatch {

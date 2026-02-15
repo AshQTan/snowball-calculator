@@ -6,9 +6,13 @@ Built with React, TypeScript, Vite, Tailwind CSS, and Recharts.
 
 ## Features
 
-### Multi-Fund Portfolio Modeling
+### Strategy & Portfolio Modeling
 
-Set up multiple funds (e.g. 401k, IRA, brokerage), each with its own name, color, starting balance, contribution schedule, and expected return rate. Useful for modeling diversified portfolios or comparing strategies side by side. Funds include preset return rates (Conservative 5%, Moderate 7%, Aggressive 10%, S&P 500 Historical 10.5%) and a color picker with six presets plus custom hex input.
+Create and compare multiple investment strategies side-by-side. Each strategy represents a distinct portfolio configuration (e.g., "Safe Scenarios", "Aggressive Growth") containing one or more funds. Strategies can be duplicated, renamed, and color-coded for easy comparison.
+
+### Multi-Fund Portfolios
+
+Within each strategy, set up multiple funds (e.g. 401k, IRA, brokerage), each with its own name, color, starting balance, contribution schedule, and expected return rate. Useful for modeling diversified portfolios. Funds include preset return rates (Conservative 5%, Moderate 7%, Aggressive 10%, S&P 500 Historical 10.5%) and a color picker with six presets plus custom hex input.
 
 ### Flexible Contributions
 
@@ -31,15 +35,14 @@ Specify your current annual income and an expected growth rate. Funds configured
 
 ### Interactive Charts
 
-- **Projection chart**: Switch between line (area) and bar chart modes. For multi-fund portfolios, choose from three view modes:
-  - **Fund × Type** — each fund split into starting balance, contributions, and interest
-  - **By Fund** — stacked by fund
-  - **By Type** — aggregate starting balance, contributions, and interest
+- **Projection chart**: Switch between line (area) and bar chart modes.
+  - **Strategy Comparison**: When multiple strategies exist, view their growth curves overlaid on the same chart.
+  - **Detailed Breakdown**: For single strategies, view by Fund, or by Contribution vs Interest.
 - **Composition chart**: Horizontal stacked bar showing portfolio composition at any given year, with a year slider to scrub through the timeline. View in combined mode (starting/contributions/interest) or by fund, with detail cards showing values and percentages.
 
 ### Milestones
 
-Built-in milestone markers at key thresholds ($10K, $25K, $50K, $100K, $250K, $500K, $1M, $2.5M, $5M, $10M) appear on the projection chart when crossed. Create custom milestones with a name, target amount, and emoji icon (16 options). Custom milestones are displayed as clickable badges below the chart.
+Built-in milestone markers at key thresholds ($10K, $25K, $50K, $100K, $250K, $500K, $1M, $2.5M, $5M, $10M) appear on the projection chart when crossed. Create custom milestones with a name, target amount, and emoji icon (choose from 16 options). Custom milestones are displayed as clickable badges below the chart.
 
 ### Summary Statistics
 
@@ -54,6 +57,10 @@ At-a-glance metrics including:
 ### Year-by-Year Schedule
 
 A detailed table breaking down each year's starting balance, contributions, interest, and ending balance. For multi-fund portfolios, three view modes are available: combined (with expandable per-fund detail rows), by fund (columnar), and fund × type (split with sub-headers). Rows are highlighted when milestones are reached. Includes an inflation-adjusted column when enabled, and pagination with a "Show All" toggle.
+
+### PDF Export
+
+Generate a clean, print-friendly PDF report of your current projection and schedule.
 
 ### Dark Mode
 

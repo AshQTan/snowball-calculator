@@ -105,11 +105,10 @@ export default function FundConfigurator({
               {PRESET_RETURNS.map((p) => (
                 <button
                   key={p.label}
-                  className={`text-[10px] px-2 py-0.5 rounded-md transition-all ${
-                    fund.returnRate === p.rate
+                  className={`text-[10px] px-2 py-0.5 rounded-md transition-all ${fund.returnRate === p.rate
                       ? 'bg-sky-100 dark:bg-neutral-600/40 text-sky-700 dark:text-neutral-200 border border-sky-300 dark:border-neutral-500/50'
                       : 'bg-slate-100 dark:bg-neutral-700/20 text-slate-400 dark:text-neutral-500 border border-slate-200 dark:border-neutral-700/30 hover:text-slate-600 dark:hover:text-neutral-400'
-                  }`}
+                    }`}
                   onClick={() => onChange({ returnRate: p.rate })}
                 >
                   {p.label} ({p.rate}%)
@@ -195,7 +194,7 @@ export default function FundConfigurator({
 
           {/* Contribution Growth — only for fixed $ contributions; % of income grows via income growth */}
           {fund.contributionType === 'fixed' && (
-          <div>
+            <div>
               <label className="input-label">Contribution Increase</label>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex gap-1.5">

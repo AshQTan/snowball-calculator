@@ -173,11 +173,10 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                 {(['combined', 'by-fund', 'split'] as TableViewMode[]).map((mode) => (
                   <button
                     key={mode}
-                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                      viewMode === mode
+                    className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${viewMode === mode
                         ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
-                    }`}
+                      }`}
                     onClick={() => setViewMode(mode)}
                   >
                     {TABLE_VIEW_LABELS[mode]}
@@ -195,11 +194,10 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
               {(['starting', 'invested'] as GrowthMode[]).map((mode) => (
                 <button
                   key={mode}
-                  className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                    growthMode === mode
+                  className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${growthMode === mode
                       ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                       : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
-                  }`}
+                    }`}
                   onClick={() => setGrowthMode(mode)}
                 >
                   {GROWTH_LABELS[mode]}
@@ -215,242 +213,239 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
 
       <div className="overflow-x-auto -mx-5">
         {(!hasFunds || viewMode === 'combined') ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-neutral-800">
-              {hasFunds && <th className="w-8 pl-5" />}
-              <th className={`text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 ${!hasFunds ? 'pl-5' : ''}`}>
-                {timelineMode === 'retirement' ? 'Age' : 'Year'}
-              </th>
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>Start</th>
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>Contribution</th>
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>Interest</th>
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">End Balance</th>
-              {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">
-                  <HeaderTooltip text="End balance adjusted for inflation, expressed in today's purchasing power.">
-                    Adjusted Balance
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-neutral-800">
+                {hasFunds && <th className="w-8 pl-5" />}
+                <th className={`text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 ${!hasFunds ? 'pl-5' : ''}`}>
+                  {timelineMode === 'retirement' ? 'Age' : 'Year'}
+                </th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>Start</th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>Contribution</th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>Interest</th>
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">End Balance</th>
+                {showReal && (
+                  <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">
+                    <HeaderTooltip text="End balance adjusted for inflation, expressed in today's purchasing power.">
+                      Adjusted Balance
+                    </HeaderTooltip>
+                  </th>
+                )}
+                <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
+                  <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br /><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                    % Growth
                   </HeaderTooltip>
                 </th>
-              )}
-              <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
-                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
-                  % Growth
-                </HeaderTooltip>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayRows.flatMap((row) => {
-              const isExp = expandedRows.has(row.year);
-              const isMilestone = milestoneYears.has(row.year);
-              const rows = [
-                <tr
-                  key={row.year}
-                  className={`border-b transition-colors ${hasFunds ? 'cursor-pointer' : ''} ${
-                    isMilestone
-                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
-                  }`}
-                  onClick={() => hasFunds && toggleRow(row.year)}
-                >
-                  {hasFunds && (
-                    <td className="py-2 pl-5">
-                      {isExp ? <ChevronUp className="w-3 h-3 text-slate-300 dark:text-neutral-600" /> : <ChevronDown className="w-3 h-3 text-slate-300 dark:text-neutral-600" />}
+              </tr>
+            </thead>
+            <tbody>
+              {displayRows.flatMap((row) => {
+                const isExp = expandedRows.has(row.year);
+                const isMilestone = milestoneYears.has(row.year);
+                const rows = [
+                  <tr
+                    key={row.year}
+                    className={`border-b transition-colors ${hasFunds ? 'cursor-pointer' : ''} ${isMilestone
+                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      }`}
+                    onClick={() => hasFunds && toggleRow(row.year)}
+                  >
+                    {hasFunds && (
+                      <td className="py-2 pl-5">
+                        {isExp ? <ChevronUp className="w-3 h-3 text-slate-300 dark:text-neutral-600" /> : <ChevronDown className="w-3 h-3 text-slate-300 dark:text-neutral-600" />}
+                      </td>
+                    )}
+                    <td className={`py-2 pr-3 font-medium ${!hasFunds ? 'pl-5' : ''}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
+                          {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                        </span>
+                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                      </div>
                     </td>
-                  )}
-                  <td className={`py-2 pr-3 font-medium ${!hasFunds ? 'pl-5' : ''}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
-                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                      </span>
-                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
-                    </div>
-                  </td>
-                  <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
-                  <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>{formatCurrency(row.totalContribution)}</td>
-                  <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>{formatCurrency(row.totalInterest)}</td>
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
-                  {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
-                  )}
-                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
-                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
-                  </td>
-                </tr>,
-              ];
-              if (hasFunds && isExp) {
-                for (const fund of funds) {
-                  rows.push(
-                    <tr key={`${row.year}-${fund.id}`} className="bg-slate-50 dark:bg-neutral-800/20">
-                      <td className="pl-5" />
-                      <td className="py-1.5 pr-3">
-                        <div className="flex items-center gap-1.5 pl-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: fund.color }} />
-                          <span className="text-xs text-slate-400 dark:text-neutral-500">{fund.name}</span>
-                        </div>
-                      </td>
-                      <td />
-                      <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
-                      <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                      <td className="py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
-                      {showReal && <td />}
-                      <td className="pr-5" />
-                    </tr>
-                  );
+                    <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
+                    <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_CONTRIBUTIONS}${TINT}` }}>{formatCurrency(row.totalContribution)}</td>
+                    <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_INTEREST}${TINT}` }}>{formatCurrency(row.totalInterest)}</td>
+                    <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                    {showReal && (
+                      <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    )}
+                    <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                      {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                    </td>
+                  </tr>,
+                ];
+                if (hasFunds && isExp) {
+                  for (const fund of funds) {
+                    rows.push(
+                      <tr key={`${row.year}-${fund.id}`} className="bg-slate-50 dark:bg-neutral-800/20">
+                        <td className="pl-5" />
+                        <td className="py-1.5 pr-3">
+                          <div className="flex items-center gap-1.5 pl-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: fund.color }} />
+                            <span className="text-xs text-slate-400 dark:text-neutral-500">{fund.name}</span>
+                          </div>
+                        </td>
+                        <td />
+                        <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
+                        <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
+                        <td className="py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                        {showReal && <td />}
+                        <td className="pr-5" />
+                      </tr>
+                    );
+                  }
                 }
-              }
-              return rows;
-            })}
-          </tbody>
-        </table>
+                return rows;
+              })}
+            </tbody>
+          </table>
         ) : viewMode === 'by-fund' ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-neutral-800">
-              <th className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5">
-                {timelineMode === 'retirement' ? 'Age' : 'Year'}
-              </th>
-              {funds.map((fund) => (
-                <Fragment key={fund.id}>
-                  <th className="text-right text-xs font-medium uppercase py-2 px-3" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
-                    {fund.name}
-                  </th>
-                  <th className="text-right text-xs font-medium uppercase py-2 px-2" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
-                    % Growth
-                  </th>
-                </Fragment>
-              ))}
-              <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Total</th>
-              {showReal && (
-                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Adjusted</th>
-              )}
-              <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
-                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
-                  % Growth
-                </HeaderTooltip>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayRows.map((row) => {
-              const isMilestone = milestoneYears.has(row.year);
-              return (
-                <tr
-                  key={row.year}
-                  className={`border-b transition-colors ${
-                    isMilestone
-                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
-                  }`}
-                >
-                  <td className="py-2 pr-3 pl-5 font-medium">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
-                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                      </span>
-                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
-                    </div>
-                  </td>
-                  {funds.map((fund) => (
-                    <Fragment key={fund.id}>
-                      <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
-                        {formatCurrency(row.fundBalances[fund.id] || 0)}
-                      </td>
-                      <td className="py-2 px-2 text-right text-xs tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}`, color: fund.color }}>
-                        {(() => { const pct = getFundGrowthPct(row.fundBalances[fund.id] || 0, fund, row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
-                      </td>
-                    </Fragment>
-                  ))}
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
-                  {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
-                  )}
-                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
-                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-neutral-800">
-              <th rowSpan={2} className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5 align-bottom">
-                {timelineMode === 'retirement' ? 'Age' : 'Year'}
-              </th>
-              {funds.map((fund) => (
-                <th key={fund.id} colSpan={3} className="text-center text-xs font-medium uppercase py-1 px-1 border-b border-slate-100 dark:border-neutral-800/50" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
-                  {fund.name}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-neutral-800">
+                <th className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5">
+                  {timelineMode === 'retirement' ? 'Age' : 'Year'}
                 </th>
-              ))}
-              <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Total</th>
-              {showReal && (
-                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Adjusted</th>
-              )}
-              <th rowSpan={2} className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5 align-bottom" style={{ color: COLOR_INTEREST }}>
-                <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br/><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
-                  % Growth
-                </HeaderTooltip>
-              </th>
-            </tr>
-            <tr className="border-b border-slate-200 dark:border-neutral-800">
-              {funds.map((fund) => {
-                const v = fundVariants(fund.color, darkMode);
+                {funds.map((fund) => (
+                  <Fragment key={fund.id}>
+                    <th className="text-right text-xs font-medium uppercase py-2 px-3" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
+                      {fund.name}
+                    </th>
+                    <th className="text-right text-xs font-medium uppercase py-2 px-2" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
+                      % Growth
+                    </th>
+                  </Fragment>
+                ))}
+                <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Total</th>
+                {showReal && (
+                  <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3">Adjusted</th>
+                )}
+                <th className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5" style={{ color: COLOR_INTEREST }}>
+                  <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br /><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                    % Growth
+                  </HeaderTooltip>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayRows.map((row) => {
+                const isMilestone = milestoneYears.has(row.year);
                 return (
-                <Fragment key={fund.id}>
-                  <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.starting}${TINT}` }}>Contrib</th>
-                  <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.contributions}${TINT}` }}>Interest</th>
-                  <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.interest}${TINT}` }}>Balance</th>
-                </Fragment>
+                  <tr
+                    key={row.year}
+                    className={`border-b transition-colors ${isMilestone
+                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      }`}
+                  >
+                    <td className="py-2 pr-3 pl-5 font-medium">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
+                          {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                        </span>
+                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                      </div>
+                    </td>
+                    {funds.map((fund) => (
+                      <Fragment key={fund.id}>
+                        <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>
+                          {formatCurrency(row.fundBalances[fund.id] || 0)}
+                        </td>
+                        <td className="py-2 px-2 text-right text-xs tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}`, color: fund.color }}>
+                          {(() => { const pct = getFundGrowthPct(row.fundBalances[fund.id] || 0, fund, row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                        </td>
+                      </Fragment>
+                    ))}
+                    <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                    {showReal && (
+                      <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    )}
+                    <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                      {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                    </td>
+                  </tr>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody>
-            {displayRows.map((row) => {
-              const isMilestone = milestoneYears.has(row.year);
-              return (
-                <tr
-                  key={row.year}
-                  className={`border-b transition-colors ${
-                    isMilestone
-                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
-                  }`}
-                >
-                  <td className="py-2 pr-3 pl-5 font-medium">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
-                        {timelineMode === 'retirement' && row.age ? row.age : row.year}
-                      </span>
-                      {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
-                    </div>
-                  </td>
-                  {funds.map((fund) => {
-                    const v = fundVariants(fund.color, darkMode);
-                    return (
+            </tbody>
+          </table>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-neutral-800">
+                <th rowSpan={2} className="text-left text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pr-3 pl-5 align-bottom">
+                  {timelineMode === 'retirement' ? 'Age' : 'Year'}
+                </th>
+                {funds.map((fund) => (
+                  <th key={fund.id} colSpan={3} className="text-center text-xs font-medium uppercase py-1 px-1 border-b border-slate-100 dark:border-neutral-800/50" style={{ color: fund.color, backgroundColor: `${fund.color}${TINT}` }}>
+                    {fund.name}
+                  </th>
+                ))}
+                <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Total</th>
+                {showReal && (
+                  <th rowSpan={2} className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 pl-3 align-bottom">Adjusted</th>
+                )}
+                <th rowSpan={2} className="text-right text-xs font-medium uppercase py-2 pl-3 pr-5 align-bottom" style={{ color: COLOR_INTEREST }}>
+                  <HeaderTooltip text={<>{growthMode === 'starting' ? 'Percentage growth of the total portfolio relative to the initial starting balance.' : 'Percentage growth of the total portfolio relative to total amount invested (starting balance + contributions). Also known as Return on Cost.'}{showReal && <><br /><span className="text-orange-700/80 dark:text-orange-400/80">Adjusted for inflation (real growth).</span></>}</>}>
+                    % Growth
+                  </HeaderTooltip>
+                </th>
+              </tr>
+              <tr className="border-b border-slate-200 dark:border-neutral-800">
+                {funds.map((fund) => {
+                  const v = fundVariants(fund.color, darkMode);
+                  return (
                     <Fragment key={fund.id}>
-                      <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.starting}${TINT}` }}>{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
-                      <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.contributions}${TINT}` }}>{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                      <td className="py-2 px-2 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${v.interest}${TINT}` }}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.starting}${TINT}` }}>Contrib</th>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.contributions}${TINT}` }}>Interest</th>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.interest}${TINT}` }}>Balance</th>
                     </Fragment>
-                    );
-                  })}
-                  <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
-                  {showReal && (
-                    <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
-                  )}
-                  <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
-                    {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {displayRows.map((row) => {
+                const isMilestone = milestoneYears.has(row.year);
+                return (
+                  <tr
+                    key={row.year}
+                    className={`border-b transition-colors ${isMilestone
+                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      }`}
+                  >
+                    <td className="py-2 pr-3 pl-5 font-medium">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
+                          {timelineMode === 'retirement' && row.age ? row.age : row.year}
+                        </span>
+                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                      </div>
+                    </td>
+                    {funds.map((fund) => {
+                      const v = fundVariants(fund.color, darkMode);
+                      return (
+                        <Fragment key={fund.id}>
+                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.starting}${TINT}` }}>{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
+                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.contributions}${TINT}` }}>{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
+                          <td className="py-2 px-2 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${v.interest}${TINT}` }}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                        </Fragment>
+                      );
+                    })}
+                    <td className="py-2 pl-3 text-right text-slate-800 dark:text-neutral-200 font-medium tabular-nums">{formatCurrency(row.endBalance)}</td>
+                    {showReal && (
+                      <td className="py-2 pl-3 text-right text-orange-700/80 dark:text-orange-400/80 font-medium tabular-nums">{formatCurrency(row.realEndBalance)}</td>
+                    )}
+                    <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
+                      {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
