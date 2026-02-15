@@ -30,6 +30,7 @@ interface ProjectionChartComparisonProps {
   chartMode: ChartMode;
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
+  hideHeader?: boolean;
 }
 
 export default function ProjectionChartComparison({
@@ -41,6 +42,7 @@ export default function ProjectionChartComparison({
   chartMode,
   darkMode,
   onChartModeChange,
+  hideHeader,
 }: ProjectionChartComparisonProps) {
   const [metric, setMetric] = useState<CompareMetric>('balance');
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
@@ -91,8 +93,8 @@ export default function ProjectionChartComparison({
   }, [chartData]);
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
+    <div className={hideHeader ? '' : 'card'}>
+      {!hideHeader && <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
           Projection
         </h2>
@@ -136,7 +138,7 @@ export default function ProjectionChartComparison({
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       <div className="h-[350px] sm:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">

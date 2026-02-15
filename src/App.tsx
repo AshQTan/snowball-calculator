@@ -7,7 +7,7 @@ import Header from './components/Header';
 import GlobalSettingsPanel from './components/GlobalSettingsPanel';
 import FundsPanel from './components/FundsPanel';
 import ProjectionChart from './components/ProjectionChart';
-import ProjectionChartComparison from './components/ProjectionChartComparison';
+import ProjectionChartGrid from './components/ProjectionChartGrid';
 import CompositionChart from './components/CompositionChart';
 import SummaryStats, { MilestoneBadge } from './components/SummaryStats';
 import ScheduleTable from './components/ScheduleTable';
@@ -363,7 +363,7 @@ export default function App() {
               </div>
             )}
             {state.strategies.length > 1 ? (
-              <ProjectionChartComparison
+              <ProjectionChartGrid
                 strategies={state.strategies}
                 allResults={allResults}
                 showReal={state.global.showReal}
