@@ -79,7 +79,9 @@ export default function CompositionChart({
     });
   }, [funds, schedule, clampedYear, hasManyFunds, row]);
 
-  const yearLabel = timelineMode === 'retirement' && row?.age ? `Age ${row.age}` : `Year ${clampedYear}`;
+  const yearLabel = timelineMode === 'retirement' && row?.age
+    ? `Age ${row.age}`
+    : `Year ${row?.year ?? (clampedYear - 1)}`;
 
   return (
     <div className="card">

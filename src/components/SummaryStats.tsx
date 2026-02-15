@@ -64,32 +64,100 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
   return (
     <div className="space-y-3">
       {/* Main stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="stat-card items-center text-center">
-          <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayBalance)}</span>
-          <span className="text-[10px] text-slate-400 dark:text-neutral-500">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
-          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">in today's dollars</span>}
+      {strategies && strategies.length > 1 && allResults ? (
+        (() => {
+          // Build ordered list of strategies by final balance (display currency based on showReal)
+          const items = strategies.map((s) => {
+            const r = allResults.get(s.id);
+            const final = r ? (showReal ? r.finalRealBalance : r.finalBalance) : 0;
+            const invested = r ? (r.totalStartingBalance + r.totalContributed) : 0;
+            const interest = r ? r.totalInterest : 0;
+            const cagr = r ? (showReal ? r.realCAGR : r.effectiveCAGR) : 0;
+            const years = r ? (r.schedule.length > 0 ? r.schedule.length - 1 : 0) : 0;
+            const doubling = r ? (showReal ? r.realDoublingTimeYears : r.doublingTimeYears) : Infinity;
+            return { strategy: s, final, invested, interest, cagr, years, doubling };
+          }).sort((a, b) => b.final - a.final);
+
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="stat-card">
+                <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
+                <div className="mt-1 space-y-1">
+                  {items.map((it) => (
+                      <div key={it.strategy.id} className="flex items-center justify-center">
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.final)}</span>
+                      </div>
+                    ))}
+                </div>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-2 block">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
+              </div>
+
+              <div className="stat-card">
+                <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
+                <div className="mt-1 space-y-1">
+                  {items.map((it) => (
+                    <div key={it.strategy.id} className="flex items-center justify-center">
+                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.invested)}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-2 block">start + contrib</span>
+              </div>
+
+              <div className="stat-card">
+                <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
+                <div className="mt-1 space-y-1">
+                  {items.map((it) => (
+                    <div key={it.strategy.id} className="flex items-center justify-center">
+                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.interest)}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-2 block">per strategy</span>
+              </div>
+
+              <div className="stat-card">
+                <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth (CAGR)</span>
+                <div className="mt-1 space-y-1">
+                  {items.map((it) => (
+                    <div key={it.strategy.id} className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatPercent(it.cagr)}</span>
+                      <span className="text-[11px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(it.doubling)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="stat-card items-center text-center">
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayBalance)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
+            {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">in today's dollars</span>}
+          </div>
+          <div className="stat-card items-center text-center">
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalStartingBalance + totalContributed)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + ${totalContributed.toLocaleString()} contrib.</span>
+            {totalIncome > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalContributed / totalIncome * 100)} of income saved</span>}
+          </div>
+          <div className="stat-card items-center text-center">
+            <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
+            {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
+          </div>
+          <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(showReal ? realCAGR : effectiveCAGR)} CAGR</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(showReal ? realDoublingTimeYears : doublingTimeYears)}</span>
+            {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">real return</span>}
+          </Tooltip>
         </div>
-        <div className="stat-card items-center text-center">
-          <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalStartingBalance + totalContributed)}</span>
-          <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + ${totalContributed.toLocaleString()} contrib.</span>
-          {totalIncome > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalContributed / totalIncome * 100)} of income saved</span>}
-        </div>
-        <div className="stat-card items-center text-center">
-          <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
-          <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
-          {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
-        </div>
-        <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>
-          <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(showReal ? realCAGR : effectiveCAGR)} CAGR</span>
-          <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(showReal ? realDoublingTimeYears : doublingTimeYears)}</span>
-          {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">real return</span>}
-        </Tooltip>
-      </div>
+      )}
 
       {/* Warnings */}
       {contributionExceedsIncomeYear !== null && (
@@ -99,56 +167,7 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
         </div>
       )}
 
-      {/* Strategy comparison strip */}
-      {strategies && strategies.length > 1 && allResults && (() => {
-        const items = strategies.map((s) => {
-          const r = allResults.get(s.id);
-          const bal = r ? (showReal ? r.finalRealBalance : r.finalBalance) : 0;
-          return { strategy: s, balance: bal };
-        }).sort((a, b) => b.balance - a.balance);
-        const maxBal = Math.max(...items.map((i) => i.balance), 1);
-        return (
-          <div className="card !p-3 space-y-2">
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Strategy Comparison</span>
-            <div className="space-y-1.5">
-              {items.map(({ strategy: s, balance: bal }) => (
-                <button
-                  key={s.id}
-                  onClick={() => onSwitchStrategy?.(s.id)}
-                  className={`w-full text-left rounded-md px-2 py-1.5 transition-colors ${
-                    s.id === activeStrategyId
-                      ? 'bg-slate-100 dark:bg-neutral-800'
-                      : 'hover:bg-slate-50 dark:hover:bg-neutral-800/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium flex items-center gap-1.5 text-slate-700 dark:text-neutral-300">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                      {s.name}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(bal)}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-neutral-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${(bal / maxBal) * 100}%`, backgroundColor: s.color }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-            {strategies.length === 2 && (() => {
-              const diff = items[0].balance - items[1].balance;
-              const pctDiff = items[1].balance > 0 ? (diff / items[1].balance) * 100 : 0;
-              return (
-                <div className="text-[10px] text-slate-400 dark:text-neutral-500 text-center">
-                  Δ {formatCurrency(diff)} ({formatPercent(pctDiff)})
-                </div>
-              );
-            })()}
-          </div>
-        );
-      })()}
+      
     </div>
   );
 }

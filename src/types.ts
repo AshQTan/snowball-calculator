@@ -109,7 +109,7 @@ export const FUND_COLORS = [
 export const FUND_PICKER_COUNT = 6;
 
 export const STRATEGY_COLORS = [
-  '#0ea5e9', '#ef4444', '#a3e635', '#8b5cf6', '#ec4899',
+  '#0ea5e9', '#ef4444', '#86c232', '#8b5cf6', '#ec4899',
 ];
 
 export const MAX_STRATEGIES = 5;

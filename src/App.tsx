@@ -247,7 +247,14 @@ export default function App() {
 
           {/* Right: Results */}
           <div className="space-y-4 min-w-0">
-            <SummaryStats result={result} showReal={state.global.showReal} />
+            <SummaryStats
+              result={result}
+              showReal={state.global.showReal}
+              strategies={state.strategies}
+              activeStrategyId={state.activeStrategyId}
+              allResults={allResults}
+              onSwitchStrategy={setActiveStrategyId}
+            />
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowMilestones(!showMilestones)}
