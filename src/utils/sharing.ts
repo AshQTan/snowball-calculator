@@ -27,6 +27,20 @@ export function stateToURL(state: AppState): string {
       cgi: f.contributionGrowthInterval,
       r: f.returnRate,
     })),
+    d: (s.debts || []).map((d) => ({
+      n: d.name,
+      c: d.color,
+      p: d.principal,
+      ir: d.interestRate,
+      mp: d.minimumPayment,
+      mpt: d.minimumPaymentType,
+      ep: d.extraPayment,
+      ept: d.extraPaymentType,
+      pf: d.paymentFrequency,
+      pg: d.paymentGrowthRate,
+      pgt: d.paymentGrowthType,
+      pgi: d.paymentGrowthInterval,
+    })),
   }));
   params.set('s', JSON.stringify(strategies));
   const activeIdx = state.strategies.findIndex((s) => s.id === state.activeStrategyId);
@@ -66,14 +80,31 @@ export function stateFromURL(): AppState | null {
         returnRate: f.r,
       }));
 
+    const parseDebts = (debtsRaw?: { n: string; c: string; p: number; ir: number; mp: number; mpt?: string; ep: number; ept?: string; pf?: string; pg: number; pgt?: string; pgi?: number }[]) =>
+      (debtsRaw || []).map((d) => ({
+        id: crypto.randomUUID(),
+        name: d.n,
+        color: d.c,
+        principal: d.p,
+        interestRate: d.ir,
+        minimumPayment: d.mp,
+        minimumPaymentType: (d.mpt as 'fixed' | 'percent_of_income') || 'fixed',
+        extraPayment: d.ep,
+        extraPaymentType: (d.ept as 'fixed' | 'percent_of_income') || 'fixed',
+        paymentFrequency: (d.pf as 'monthly' | 'annually') || 'monthly',
+        paymentGrowthRate: d.pg,
+        paymentGrowthType: (d.pgt as 'percent' | 'fixed') || 'fixed',
+        paymentGrowthInterval: d.pgi || 1,
+      }));
+
     let strategies: AppState['strategies'];
     let activeStrategyId: string;
 
     if (params.has('s')) {
       // New multi-strategy format
-      const strategiesRaw = JSON.parse(params.get('s')!) as { n: string; c: string; f: any[] }[];
+      const strategiesRaw = JSON.parse(params.get('s')!) as { n: string; c: string; f: any[]; d?: any[] }[];
       strategies = strategiesRaw.map((s) =>
-        createStrategy(s.n, s.c, parseFunds(s.f))
+        createStrategy(s.n, s.c, parseFunds(s.f), parseDebts(s.d))
       );
       const activeIdx = Number(params.get('as') || '0');
       activeStrategyId = strategies[Math.min(activeIdx, strategies.length - 1)]?.id || strategies[0].id;

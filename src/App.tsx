@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, ChartMode, CustomMilestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
+import { AppState, GlobalSettings, Fund, Debt, ChartMode, CustomMilestone, Milestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -34,12 +34,13 @@ export default function App() {
     [state.strategies, state.activeStrategyId],
   );
   const activeFunds = activeStrategy.funds;
+  const activeDebts = activeStrategy.debts || [];
 
   // Compute projections for all strategies
   const allResults = useMemo(
     () => new Map(state.strategies.map((s) => [
       s.id,
-      computeProjection(state.global, s.funds, state.customMilestones),
+      computeProjection(state.global, s.funds, state.customMilestones, s.debts || []),
     ])),
     [state.strategies, state.global, state.customMilestones],
   );
@@ -54,6 +55,15 @@ export default function App() {
       ...prev,
       strategies: prev.strategies.map((s) =>
         s.id === prev.activeStrategyId ? { ...s, funds } : s
+      ),
+    }));
+  }, []);
+
+  const updateDebts = useCallback((debts: Debt[]) => {
+    setState((prev) => ({
+      ...prev,
+      strategies: prev.strategies.map((s) =>
+        s.id === prev.activeStrategyId ? { ...s, debts } : s
       ),
     }));
   }, []);
@@ -200,8 +210,9 @@ export default function App() {
         baseName = `${source.name} (copy ${i})`;
       }
       const newFunds = source.funds.map((f) => ({ ...f, id: crypto.randomUUID() }));
+      const newDebts = (source.debts || []).map((d) => ({ ...d, id: crypto.randomUUID() }));
       const color = nextStrategyColor(prev.strategies);
-      const strategy = createStrategy(baseName, color, newFunds);
+      const strategy = createStrategy(baseName, color, newFunds, newDebts);
       return {
         ...prev,
         strategies: [...prev.strategies, strategy],
@@ -232,8 +243,10 @@ export default function App() {
             <GlobalSettingsPanel settings={state.global} onChange={updateGlobal} />
             <FundsPanel
               funds={activeFunds}
+              debts={activeDebts}
               showIncomeOption={showIncomeOption}
               onChange={updateFunds}
+              onDebtsChange={updateDebts}
               strategies={state.strategies}
               activeStrategyId={state.activeStrategyId}
               onSwitchStrategy={setActiveStrategyId}
@@ -258,22 +271,20 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowMilestones(!showMilestones)}
-                className={`btn-ghost text-xs transition-colors ${
-                  showMilestones
-                    ? 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30'
-                    : 'text-slate-400 dark:text-neutral-500'
-                }`}
+                className={`btn-ghost text-xs transition-colors ${showMilestones
+                  ? 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30'
+                  : 'text-slate-400 dark:text-neutral-500'
+                  }`}
               >
                 <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showMilestones ? 'bg-sky-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
                 Milestones {showMilestones ? 'On' : 'Off'}
               </button>
               <button
                 onClick={() => setShowAddMilestone(!showAddMilestone)}
-                className={`btn-ghost text-xs transition-colors ${
-                  showAddMilestone
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-                    : 'text-slate-400 dark:text-neutral-500'
-                }`}
+                className={`btn-ghost text-xs transition-colors ${showAddMilestone
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+                  : 'text-slate-400 dark:text-neutral-500'
+                  }`}
               >
                 <span className="text-sm leading-none mr-1">+</span>
                 Custom
@@ -314,11 +325,10 @@ export default function App() {
                       <button
                         key={icon}
                         onClick={() => setNewMsIcon(icon)}
-                        className={`w-8 h-8 rounded-md text-base flex items-center justify-center transition-all ${
-                          newMsIcon === icon
-                            ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400 scale-110'
-                            : 'bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700'
-                        }`}
+                        className={`w-8 h-8 rounded-md text-base flex items-center justify-center transition-all ${newMsIcon === icon
+                          ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400 scale-110'
+                          : 'bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700'
+                          }`}
                       >
                         {icon}
                       </button>

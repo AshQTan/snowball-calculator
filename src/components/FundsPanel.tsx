@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, MoreHorizontal, Copy, Trash2, Pencil } from 'lucide-react';
-import { Fund, Strategy, MAX_STRATEGIES, STRATEGY_COLORS, FUND_COLORS, createFund } from '../types';
+import { Fund, Debt, Strategy, MAX_STRATEGIES, STRATEGY_COLORS, FUND_COLORS, DEBT_COLORS, createFund, createDebt } from '../types';
 import FundConfigurator from './FundConfigurator';
+import DebtConfigurator from './DebtConfigurator';
 
 interface FundsPanelProps {
   funds: Fund[];
+  debts: Debt[];
   showIncomeOption: boolean;
   onChange: (funds: Fund[]) => void;
+  onDebtsChange: (debts: Debt[]) => void;
   strategies: Strategy[];
   activeStrategyId: string;
   onSwitchStrategy: (id: string) => void;
@@ -118,8 +121,10 @@ function StrategyColorPicker({
 
 export default function FundsPanel({
   funds,
+  debts,
   showIncomeOption,
   onChange,
+  onDebtsChange,
   strategies,
   activeStrategyId,
   onSwitchStrategy,
@@ -151,6 +156,22 @@ export default function FundsPanel({
 
   const deleteFund = (id: string) => {
     onChange(funds.filter((f) => f.id !== id));
+  };
+
+  const addDebt = () => {
+    const newDebt = createDebt(debts.length);
+    const usedColors = new Set(debts.map((d) => d.color));
+    const available = DEBT_COLORS.find((c) => !usedColors.has(c));
+    if (available) newDebt.color = available;
+    onDebtsChange([...debts, newDebt]);
+  };
+
+  const updateDebt = (id: string, updates: Partial<Debt>) => {
+    onDebtsChange(debts.map((d) => (d.id === id ? { ...d, ...updates } : d)));
+  };
+
+  const deleteDebt = (id: string) => {
+    onDebtsChange(debts.filter((d) => d.id !== id));
   };
 
   const startRename = useCallback((id: string) => {
@@ -196,11 +217,10 @@ export default function FundsPanel({
                 <button
                   onClick={() => onSwitchStrategy(s.id)}
                   onContextMenu={(e) => { e.preventDefault(); setMenuOpenId(s.id); }}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors max-w-[140px] ${
-                    s.id === activeStrategyId
-                      ? 'bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-200'
-                      : 'text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-800/50'
-                  }`}
+                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors max-w-[140px] ${s.id === activeStrategyId
+                    ? 'bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-200'
+                    : 'text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-800/50'
+                    }`}
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0 cursor-pointer hover:scale-125 transition-transform ring-offset-1 ring-offset-white dark:ring-offset-neutral-900"
@@ -305,6 +325,43 @@ export default function FundsPanel({
             onDelete={() => deleteFund(fund.id)}
           />
         ))}
+      </div>
+
+      {/* Debts section */}
+      <div className="border-t border-slate-200 dark:border-neutral-700/50 pt-4 mt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
+              Debts
+            </h2>
+            {debts.length > 0 && (() => {
+              const totalDebt = debts.reduce((s, d) => s + d.principal, 0);
+              return totalDebt > 0 ? (
+                <p className="text-xs text-red-400 dark:text-red-500/80 mt-0.5">
+                  Total owed: ${totalDebt.toLocaleString()}
+                </p>
+              ) : null;
+            })()}
+          </div>
+          <button onClick={addDebt} className="btn-ghost text-xs">
+            <Plus className="w-3.5 h-3.5" />
+            Add Debt
+          </button>
+        </div>
+
+        {debts.length > 0 && (
+          <div className="space-y-3 mt-3">
+            {debts.map((debt) => (
+              <DebtConfigurator
+                key={debt.id}
+                debt={debt}
+                showIncomeOption={showIncomeOption}
+                onChange={(updates) => updateDebt(debt.id, updates)}
+                onDelete={() => deleteDebt(debt.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

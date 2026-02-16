@@ -110,6 +110,7 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
 
   const displayRows = expanded ? schedule : schedule.slice(0, 50);
   const hasFunds = funds.length > 1;
+  const hasDebts = schedule.some((r) => r.debtBalance > 0 || r.totalDebtPayment > 0);
   const initialBalance = schedule[0]?.startBalance ?? 0;
 
   // Precompute cumulative per-fund contributions for "vs invested" growth mode
@@ -174,8 +175,8 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   <button
                     key={mode}
                     className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${viewMode === mode
-                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                        : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
                       }`}
                     onClick={() => setViewMode(mode)}
                   >
@@ -195,8 +196,8 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                 <button
                   key={mode}
                   className={`block w-full text-left px-3 py-1.5 text-[11px] transition-colors ${growthMode === mode
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                      : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700'
                     }`}
                   onClick={() => setGrowthMode(mode)}
                 >
@@ -236,6 +237,17 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                     % Growth
                   </HeaderTooltip>
                 </th>
+                {hasDebts && (
+                  <>
+                    <th className="text-right text-xs font-medium text-red-400 dark:text-red-500/80 uppercase py-2 px-3">Debt Pmt</th>
+                    <th className="text-right text-xs font-medium text-red-400 dark:text-red-500/80 uppercase py-2 px-3">Debt Bal</th>
+                    <th className="text-right text-xs font-medium text-slate-400 dark:text-neutral-500 uppercase py-2 px-3 pr-5">
+                      <HeaderTooltip text="Net worth = total fund balance minus remaining debt balance.">
+                        Net Worth
+                      </HeaderTooltip>
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -246,8 +258,8 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   <tr
                     key={row.year}
                     className={`border-b transition-colors ${hasFunds ? 'cursor-pointer' : ''} ${isMilestone
-                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                       }`}
                     onClick={() => hasFunds && toggleRow(row.year)}
                   >
@@ -274,6 +286,15 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                     <td className="py-2 pl-3 pr-5 text-right tabular-nums font-medium" style={{ color: COLOR_INTEREST }}>
                       {(() => { const pct = getGrowthPct(row); return pct !== null ? formatPercent(pct, 0) : '—'; })()}
                     </td>
+                    {hasDebts && (
+                      <>
+                        <td className="py-2 px-3 text-right text-red-500/80 dark:text-red-400/70 tabular-nums">{row.totalDebtPayment > 0 ? formatCurrency(row.totalDebtPayment) : '—'}</td>
+                        <td className="py-2 px-3 text-right text-red-500/80 dark:text-red-400/70 tabular-nums">{row.debtBalance > 0 ? formatCurrency(row.debtBalance) : row.year > 0 ? <span className="text-emerald-500">$0</span> : '—'}</td>
+                        <td className={`py-2 px-3 pr-5 text-right font-medium tabular-nums ${row.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {row.netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(row.netWorth))}
+                        </td>
+                      </>
+                    )}
                   </tr>,
                 ];
                 if (hasFunds && isExp) {
@@ -336,8 +357,8 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   <tr
                     key={row.year}
                     className={`border-b transition-colors ${isMilestone
-                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                       }`}
                   >
                     <td className="py-2 pr-3 pl-5 font-medium">
@@ -412,8 +433,8 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   <tr
                     key={row.year}
                     className={`border-b transition-colors ${isMilestone
-                        ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
-                        : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
+                      ? 'border-sky-200 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-900/10 hover:bg-sky-50 dark:hover:bg-sky-900/20'
+                      : 'border-slate-100 dark:border-neutral-800/50 hover:bg-slate-50 dark:hover:bg-neutral-800/30'
                       }`}
                   >
                     <td className="py-2 pr-3 pl-5 font-medium">

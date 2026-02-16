@@ -1,6 +1,7 @@
 import {
   GlobalSettings,
   Fund,
+  Debt,
   CustomMilestone,
   YearBreakdown,
   ProjectionResult,
@@ -13,6 +14,7 @@ export function computeProjection(
   global: GlobalSettings,
   funds: Fund[],
   customMilestones: CustomMilestone[] = [],
+  debts: Debt[] = [],
 ): ProjectionResult {
   const g = global;
 
@@ -44,10 +46,18 @@ export function computeProjection(
   const bal: Record<string, number> = {};
   for (const f of funds) bal[f.id] = f.startingBalance;
 
+  // per-debt running balances
+  const debtBal: Record<string, number> = {};
+  for (const d of debts) debtBal[d.id] = d.principal;
+  const initialDebtBalance = debts.reduce((s, d) => s + d.principal, 0);
+
   let cumulativeContributions = 0;
   let cumulativeInterest = 0;
+  let cumulativeDebtPayments = 0;
+  let cumulativeDebtInterest = 0;
   let totalIncome = 0;
   let contributionExceedsIncomeYear: number | null = null;
+  let debtFreeYear: number | null = null;
 
   // Year 0: starting state before any contributions or growth
   const year0FundBalances: Record<string, number> = {};
@@ -57,6 +67,14 @@ export function computeProjection(
     year0FundBalances[f.id] = f.startingBalance;
     year0FundContributions[f.id] = 0;
     year0FundInterest[f.id] = 0;
+  }
+  const year0DebtBalances: Record<string, number> = {};
+  const year0DebtPayments: Record<string, number> = {};
+  const year0DebtInterest: Record<string, number> = {};
+  for (const d of debts) {
+    year0DebtBalances[d.id] = d.principal;
+    year0DebtPayments[d.id] = 0;
+    year0DebtInterest[d.id] = 0;
   }
   schedule.push({
     year: 0,
@@ -75,6 +93,15 @@ export function computeProjection(
     pctStartingBalance: 100,
     pctContributions: 0,
     pctInterest: 0,
+    totalDebtPayment: 0,
+    totalDebtInterest: 0,
+    debtBalance: initialDebtBalance,
+    netWorth: totalStartingBalance - initialDebtBalance,
+    debtBalances: year0DebtBalances,
+    debtPayments: year0DebtPayments,
+    debtInterestPaid: year0DebtInterest,
+    cumulativeDebtPayments: 0,
+    cumulativeDebtInterest: 0,
   });
 
   for (let y = 1; y <= totalYears; y++) {
@@ -150,6 +177,83 @@ export function computeProjection(
       contributionExceedsIncomeYear = y;
     }
 
+    // --- Debt amortization ---
+    let yearDebtPayment = 0;
+    let yearDebtInterest = 0;
+    const debtPayments: Record<string, number> = {};
+    const debtInterestPaid: Record<string, number> = {};
+
+    for (const debt of debts) {
+      let balance = debtBal[debt.id] || 0;
+      if (balance <= 0) {
+        debtPayments[debt.id] = 0;
+        debtInterestPaid[debt.id] = 0;
+        continue;
+      }
+
+      // Compute this debt's annual payment with growth
+      // Resolve minimum payment
+      let annualMin: number;
+      if (debt.minimumPaymentType === 'percent_of_income') {
+        annualMin = (debt.minimumPayment / 100) * incomeThisYear;
+      } else {
+        annualMin = debt.paymentFrequency === 'monthly'
+          ? debt.minimumPayment * 12
+          : debt.minimumPayment;
+      }
+
+      // Resolve extra payment
+      let annualExtra: number;
+      if (debt.extraPaymentType === 'percent_of_income') {
+        annualExtra = (debt.extraPayment / 100) * incomeThisYear;
+      } else {
+        annualExtra = debt.paymentFrequency === 'monthly'
+          ? debt.extraPayment * 12
+          : debt.extraPayment;
+      }
+
+      const baseMonthlyPayment = (annualMin + annualExtra) / 12;
+      const interval = Math.max(1, debt.paymentGrowthInterval || 1);
+      const increments = Math.floor((y - 1) / interval);
+      let monthlyPayment: number;
+      if (debt.paymentGrowthType === 'fixed') {
+        monthlyPayment = baseMonthlyPayment + debt.paymentGrowthRate * increments;
+      } else {
+        monthlyPayment = baseMonthlyPayment * Math.pow(1 + debt.paymentGrowthRate / 100, increments);
+      }
+
+      const monthlyRate = debt.interestRate / 100 / 12;
+      let debtInt = 0;
+      let debtPay = 0;
+
+      for (let m = 0; m < 12; m++) {
+        if (balance <= 0) break;
+        const interest = balance * monthlyRate;
+        debtInt += interest;
+        balance += interest;
+        const payment = Math.min(monthlyPayment, balance);
+        debtPay += payment;
+        balance -= payment;
+        if (balance < 0.01) balance = 0; // clean up floating point
+      }
+
+      debtBal[debt.id] = balance;
+      debtPayments[debt.id] = debtPay;
+      debtInterestPaid[debt.id] = debtInt;
+      yearDebtPayment += debtPay;
+      yearDebtInterest += debtInt;
+    }
+
+    cumulativeDebtPayments += yearDebtPayment;
+    cumulativeDebtInterest += yearDebtInterest;
+
+    const totalDebtRemaining = debts.reduce((s, d) => s + (debtBal[d.id] || 0), 0);
+
+    // Detect debt-free year
+    if (debtFreeYear === null && debts.length > 0 && initialDebtBalance > 0 && totalDebtRemaining <= 0) {
+      debtFreeYear = y;
+    }
+
     const endBalance = funds.reduce((s, f) => s + (bal[f.id] || 0), 0);
     const inflationFactor = Math.pow(1 + g.inflationRate / 100, y);
 
@@ -172,6 +276,15 @@ export function computeProjection(
       pctStartingBalance: totalStartingBalance * pctTotal,
       pctContributions: cumulativeContributions * pctTotal,
       pctInterest: cumulativeInterest * pctTotal,
+      totalDebtPayment: yearDebtPayment,
+      totalDebtInterest: yearDebtInterest,
+      debtBalance: totalDebtRemaining,
+      netWorth: endBalance - totalDebtRemaining,
+      debtBalances: { ...debtBal },
+      debtPayments,
+      debtInterestPaid,
+      cumulativeDebtPayments,
+      cumulativeDebtInterest,
     };
 
     schedule.push(row);
@@ -193,6 +306,7 @@ export function computeProjection(
 
   const finalBalance = schedule.length > 0 ? schedule[schedule.length - 1].endBalance : totalStartingBalance;
   const finalRealBalance = schedule.length > 0 ? schedule[schedule.length - 1].realEndBalance : totalStartingBalance;
+  const finalDebtBalance = schedule.length > 0 ? schedule[schedule.length - 1].debtBalance : initialDebtBalance;
 
   const totalInvested = totalStartingBalance + cumulativeContributions;
   const effectiveCAGR =
@@ -222,7 +336,11 @@ export function computeProjection(
     realDoublingTimeYears,
     milestones,
     contributionExceedsIncomeYear,
+    totalDebtInterestPaid: cumulativeDebtInterest,
+    totalDebtPayments: cumulativeDebtPayments,
+    initialDebtBalance,
+    remainingDebt: finalDebtBalance,
+    debtFreeYear,
+    netWorth: finalBalance - finalDebtBalance,
   };
 }
-
-

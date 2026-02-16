@@ -120,12 +120,12 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
                 <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
                 <div className="mt-1 space-y-1">
                   {items.map((it) => (
-                      <div key={it.strategy.id} className="flex items-center justify-center">
-                        <InlineTooltip text={it.strategy.name}>
-                          <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.final)}</span>
-                        </InlineTooltip>
-                      </div>
-                    ))}
+                    <div key={it.strategy.id} className="flex items-center justify-center">
+                      <InlineTooltip text={it.strategy.name}>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: it.strategy.color }}>{formatCurrency(it.final)}</span>
+                      </InlineTooltip>
+                    </div>
+                  ))}
                 </div>
                 <span className="text-[10px] text-slate-400 dark:text-neutral-500 mt-2 block">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
               </div>
@@ -211,7 +211,36 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
         </div>
       )}
 
-      
+      {/* Debt stats — shown when debts exist */}
+      {result.initialDebtBalance > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="stat-card items-center text-center">
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Worth</span>
+            <span className={`text-lg font-semibold tabular-nums ${result.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              {result.netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(result.netWorth))}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">assets − debts</span>
+          </div>
+          <div className="stat-card items-center text-center">
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Debt Free</span>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
+              {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : '—'}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">
+              {result.debtFreeYear !== null
+                ? `${result.debtFreeYear} ${result.debtFreeYear === 1 ? 'year' : 'years'} to payoff`
+                : 'not paid off in timeline'}
+            </span>
+          </div>
+          <div className="stat-card items-center text-center">
+            <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Debt Interest</span>
+            <span className="text-lg font-semibold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(result.totalDebtInterestPaid)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">total interest paid on debts</span>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 }
@@ -244,9 +273,8 @@ export function MilestoneBadge({ milestone, chevronCount, onClick, strategyHits 
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? onClick : undefined}
       onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(); } } : undefined}
-      className={`flex items-center gap-1.5 bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700/50 rounded-lg px-2.5 py-1.5 ${
-        isClickable ? 'cursor-pointer hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors' : ''
-      }`}
+      className={`flex items-center gap-1.5 bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700/50 rounded-lg px-2.5 py-1.5 ${isClickable ? 'cursor-pointer hover:border-sky-400 dark:hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors' : ''
+        }`}
     >
       {milestone.icon ? (
         <span className="text-sm leading-none">{milestone.icon}</span>

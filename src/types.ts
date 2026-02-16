@@ -12,6 +12,22 @@ export interface Fund {
   returnRate: number;
 }
 
+export interface Debt {
+  id: string;
+  name: string;
+  color: string;
+  principal: number;
+  interestRate: number;
+  minimumPayment: number;
+  minimumPaymentType: 'fixed' | 'percent_of_income';
+  extraPayment: number;
+  extraPaymentType: 'fixed' | 'percent_of_income';
+  paymentFrequency: ContributionFrequency;
+  paymentGrowthRate: number;
+  paymentGrowthType: 'percent' | 'fixed';
+  paymentGrowthInterval: number;
+}
+
 export type ContributionFrequency = 'monthly' | 'annually';
 export type TimelineMode = 'years' | 'retirement';
 export type ChartMode = 'line' | 'bar';
@@ -32,6 +48,7 @@ export interface Strategy {
   name: string;
   color: string;
   funds: Fund[];
+  debts: Debt[];
 }
 
 export interface AppState {
@@ -59,6 +76,16 @@ export interface YearBreakdown {
   pctStartingBalance: number;
   pctContributions: number;
   pctInterest: number;
+  // Debt fields
+  totalDebtPayment: number;
+  totalDebtInterest: number;
+  debtBalance: number;
+  netWorth: number;
+  debtBalances: Record<string, number>;
+  debtPayments: Record<string, number>;
+  debtInterestPaid: Record<string, number>;
+  cumulativeDebtPayments: number;
+  cumulativeDebtInterest: number;
 }
 
 export interface ProjectionResult {
@@ -75,6 +102,13 @@ export interface ProjectionResult {
   realDoublingTimeYears: number;
   milestones: Milestone[];
   contributionExceedsIncomeYear: number | null;
+  // Debt stats
+  totalDebtInterestPaid: number;
+  totalDebtPayments: number;
+  initialDebtBalance: number;
+  remainingDebt: number;
+  debtFreeYear: number | null;
+  netWorth: number;
 }
 
 export interface Milestone {
@@ -107,6 +141,18 @@ export const FUND_COLORS = [
   '#86efac', '#fde68a', '#f0abfc', '#a5b4fc', '#bef264', '#67e8f9',
 ];
 export const FUND_PICKER_COUNT = 6;
+
+export const DEBT_COLORS = [
+  '#f87171', '#fb923c', '#fbbf24', '#a78bfa', '#f472b6', '#38bdf8',
+];
+export const DEBT_PICKER_COUNT = 6;
+
+export const DEBT_APR_PRESETS: { label: string; rate: number }[] = [
+  { label: 'Student Loan', rate: 5 },
+  { label: 'Auto Loan', rate: 6 },
+  { label: 'Mortgage', rate: 7 },
+  { label: 'Credit Card', rate: 22 },
+];
 
 export const STRATEGY_COLORS = [
   '#0ea5e9', '#ef4444', '#86c232', '#8b5cf6', '#ec4899',
@@ -142,12 +188,31 @@ export function createFund(index: number): Fund {
   };
 }
 
-export function createStrategy(name: string, color: string, funds: Fund[]): Strategy {
+export function createDebt(index: number): Debt {
+  return {
+    id: crypto.randomUUID(),
+    name: `Debt ${index + 1}`,
+    color: DEBT_COLORS[index % DEBT_COLORS.length],
+    principal: 0,
+    interestRate: 7,
+    minimumPayment: 0,
+    minimumPaymentType: 'fixed',
+    extraPayment: 0,
+    extraPaymentType: 'fixed',
+    paymentFrequency: 'monthly',
+    paymentGrowthRate: 0,
+    paymentGrowthType: 'fixed',
+    paymentGrowthInterval: 1,
+  };
+}
+
+export function createStrategy(name: string, color: string, funds: Fund[], debts: Debt[] = []): Strategy {
   return {
     id: crypto.randomUUID(),
     name,
     color,
     funds,
+    debts,
   };
 }
 
