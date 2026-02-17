@@ -137,6 +137,12 @@ export default function ProjectionChart({
       const contributions = showReal ? row.cumulativeContributions / inflationFactor : row.cumulativeContributions;
       const interest = showReal ? row.realEndBalance - row.cumulativeStartingBalance - contributions : row.cumulativeInterest;
 
+      // Calculate real vs nominal Debt & Net Worth
+      const nominalDebt = row.debtBalance || 0;
+      const nominalNw = row.netWorth ?? balance;
+      const adjustedDebt = showReal ? nominalDebt / inflationFactor : nominalDebt;
+      const adjustedNw = showReal ? nominalNw / inflationFactor : nominalNw;
+
       if (hasManyFunds) {
         // Accumulate per-fund contributions and interest
         for (const f of funds) {
@@ -158,11 +164,11 @@ export default function ProjectionChart({
           contributions,
           interest,
           ...fundData,
-          debtBalance: -(row.debtBalance || 0),
-          netWorth: row.netWorth ?? balance,
+          debtBalance: -adjustedDebt,
+          netWorth: adjustedNw,
           // Proportional NW breakdown for coloring
           ...(() => {
-            const nw = row.netWorth ?? balance;
+            const nw = adjustedNw;
             const totalAssets = balance;
             if (nw >= 0 && totalAssets > 0) {
               const s = row.cumulativeStartingBalance;
@@ -183,11 +189,11 @@ export default function ProjectionChart({
           startingBal: row.cumulativeStartingBalance,
           contributions,
           interest,
-          debtBalance: -(row.debtBalance || 0),
-          netWorth: row.netWorth ?? balance,
+          debtBalance: -adjustedDebt,
+          netWorth: adjustedNw,
           // Proportional NW breakdown for coloring
           ...(() => {
-            const nw = row.netWorth ?? balance;
+            const nw = adjustedNw;
             const totalAssets = balance;
             if (nw >= 0 && totalAssets > 0) {
               const s = row.cumulativeStartingBalance;
@@ -362,7 +368,7 @@ export default function ProjectionChart({
                   <Area type="monotone" dataKey="nw_starting" stackId="nw" stroke={COLOR_STARTING} strokeWidth={1.5} fill="url(#startGrad)" dot={false} />
                   <Area type="monotone" dataKey="nw_contributions" stackId="nw" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill="url(#contribGrad)" dot={false} />
                   <Area type="monotone" dataKey="nw_interest" stackId="nw" stroke={COLOR_INTEREST} strokeWidth={1.5} fill="url(#interestGrad)" dot={false} />
-                  <Area type="monotone" dataKey="nw_debt" stackId="nw" stroke={COLOR_DEBT} strokeWidth={1.5} fill="url(#debtGrad)" dot={false} />
+                  <Area type="monotone" dataKey="nw_debt" stackId="debt" stroke={COLOR_DEBT} strokeWidth={1.5} fill="url(#debtGrad)" dot={false} />
                   <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               ) : (
@@ -398,6 +404,9 @@ export default function ProjectionChart({
                       <Area type="monotone" dataKey="contributions" stackId="stack" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill="url(#contribGrad)" dot={false} />
                       <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill="url(#interestGrad)" dot={false} />
                     </>
+                  )}
+                  {hasDebts && (
+                    <Area type="monotone" dataKey="debtBalance" stackId="debt" stroke={COLOR_DEBT} strokeWidth={1.5} fill="url(#debtGrad)" dot={false} />
                   )}
                 </>
               )}
@@ -438,7 +447,7 @@ export default function ProjectionChart({
                   <Bar dataKey="nw_starting" stackId="nw" fill={COLOR_STARTING} name="Starting Balance" />
                   <Bar dataKey="nw_contributions" stackId="nw" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
                   <Bar dataKey="nw_interest" stackId="nw" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="nw_debt" stackId="nw" fill={COLOR_DEBT} name="Debt" />
+                  <Bar dataKey="nw_debt" stackId="debt" fill={COLOR_DEBT} name="Debt" />
                   <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               ) : (
@@ -475,6 +484,9 @@ export default function ProjectionChart({
                       <Bar dataKey="contributions" stackId="stack" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
                       <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
                     </>
+                  )}
+                  {hasDebts && (
+                    <Bar dataKey="debtBalance" stackId="debt" fill={COLOR_DEBT} name="Debt" />
                   )}
                 </>
               )}
@@ -565,7 +577,7 @@ export default function ProjectionChart({
             <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
           </div>
         ))}
-        {viewMode === 'networth' && hasDebts && (
+        {hasDebts && (
           <LegendItem color={COLOR_DEBT} label="Debt" type={chartMode === 'line' ? 'line' : 'square'} />
         )}
       </div>

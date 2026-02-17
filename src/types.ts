@@ -102,6 +102,7 @@ export interface ProjectionResult {
   doublingTimeYears: number;
   realDoublingTimeYears: number;
   milestones: Milestone[];
+  milestonesNetWorth: Milestone[];
   contributionExceedsIncomeYear: number | null;
   // Debt stats
   totalDebtInterestPaid: number;
@@ -110,6 +111,7 @@ export interface ProjectionResult {
   remainingDebt: number;
   debtFreeYear: number | null;
   netWorth: number;
+  positiveNetWorthYear: number | null;
 }
 
 export interface Milestone {

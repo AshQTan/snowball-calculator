@@ -213,7 +213,7 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
 
       {/* Debt stats — shown when debts exist */}
       {result.initialDebtBalance > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Worth</span>
             <span className={`text-lg font-semibold tabular-nums ${result.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -222,20 +222,32 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">assets − debts</span>
           </div>
           <div className="stat-card items-center text-center">
-            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Debt Free</span>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">
-              {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : '—'}
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              {result.debtFreeYear !== null ? 'Debt Free' : 'Debt Remaining'}
+            </span>
+            <span className={`text-lg font-semibold tabular-nums ${result.debtFreeYear !== null ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : formatCurrency(result.remainingDebt)}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">
-              {result.debtFreeYear !== null
-                ? `${result.debtFreeYear} ${result.debtFreeYear === 1 ? 'year' : 'years'} to payoff`
-                : 'not paid off in timeline'}
+              {totalStartingBalance - result.initialDebtBalance > 0
+                ? 'net worth is positive'
+                : (result.positiveNetWorthYear !== null
+                  ? `${result.positiveNetWorthYear} ${result.positiveNetWorthYear === 1 ? 'year' : 'years'} to + net worth`
+                  : 'net worth remains negative')}
             </span>
           </div>
           <div className="stat-card items-center text-center">
-            <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Debt Interest</span>
-            <span className="text-lg font-semibold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(result.totalDebtInterestPaid)}</span>
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500">total interest paid on debts</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Change</span>
+            <span className={`text-lg font-semibold tabular-nums ${result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              {result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? '+' : '−'}
+              {formatCurrency(Math.abs(result.netWorth - (totalStartingBalance - result.initialDebtBalance)))}
+            </span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">total Δ in net worth</span>
+          </div>
+          <div className="stat-card items-center text-center">
+            <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Debt Paid</span>
+            <span className="text-lg font-semibold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(result.totalDebtPayments)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">paid {formatCurrency(result.totalDebtInterestPaid)} in interest</span>
           </div>
         </div>
       )}

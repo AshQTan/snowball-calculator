@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppState, GlobalSettings, Fund, Debt, ChartMode, ChartViewMode, CustomMilestone, Milestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
+import { ChevronDown } from 'lucide-react';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -20,6 +21,7 @@ export default function App() {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [chartViewMode, setChartViewMode] = useState<ChartViewMode>('assets');
+  const [milestoneBasis, setMilestoneBasis] = useState<'assets' | 'netWorth'>('assets');
   const [newMsName, setNewMsName] = useState('');
   const [newMsAmount, setNewMsAmount] = useState('');
   const [newMsIcon, setNewMsIcon] = useState(MILESTONE_ICONS[0]);
@@ -72,6 +74,15 @@ export default function App() {
   const setChartMode = useCallback((chartMode: ChartMode) => {
     setState((prev) => ({ ...prev, chartMode }));
   }, []);
+
+  const handleViewModeChange = useCallback((mode: ChartViewMode) => {
+    setChartViewMode(mode);
+    // Auto-switch milestone basis to match view mode if debts exist
+    const hasDebts = state.strategies.some(s => s.debts && s.debts.length > 0);
+    if (hasDebts) {
+      setMilestoneBasis(mode === 'networth' ? 'netWorth' : 'assets');
+    }
+  }, [state.strategies]);
 
   const handleShare = useCallback(() => {
     const url = stateToURL(state);
@@ -270,16 +281,43 @@ export default function App() {
               onSwitchStrategy={setActiveStrategyId}
             />
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowMilestones(!showMilestones)}
-                className={`btn-ghost text-xs transition-colors ${showMilestones
-                  ? 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30'
-                  : 'text-slate-400 dark:text-neutral-500'
-                  }`}
-              >
-                <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showMilestones ? 'bg-sky-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
-                Milestones {showMilestones ? 'On' : 'Off'}
-              </button>
+              <div className="flex items-center bg-white dark:bg-neutral-800 rounded-lg border border-slate-200 dark:border-neutral-700 p-0.5">
+                <button
+                  onClick={() => setShowMilestones(!showMilestones)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${showMilestones
+                    ? 'text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20'
+                    : 'text-slate-500 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'
+                    }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${showMilestones ? 'bg-sky-500' : 'bg-slate-300 dark:bg-neutral-600'}`} />
+                  Milestones
+                </button>
+                {activeDebts.length > 0 && showMilestones && (
+                  <>
+                    <div className="w-px h-3 bg-slate-200 dark:bg-neutral-700 mx-1" />
+                    <div className="relative group">
+                      <button className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-neutral-400 hover:text-slate-700 dark:hover:text-neutral-300 px-1.5 py-1 rounded transition-colors">
+                        Basis: {milestoneBasis === 'assets' ? 'Assets' : 'Net Worth'}
+                        <ChevronDown className="w-2.5 h-2.5 opacity-50" />
+                      </button>
+                      <div className="absolute right-0 top-full mt-1 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 min-w-[100px]">
+                        <button
+                          className={`block w-full text-left px-3 py-1.5 text-[10px] ${milestoneBasis === 'assets' ? 'text-sky-600 font-medium bg-sky-50 dark:bg-sky-900/20' : 'text-slate-600 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-700'}`}
+                          onClick={() => setMilestoneBasis('assets')}
+                        >
+                          Total Assets
+                        </button>
+                        <button
+                          className={`block w-full text-left px-3 py-1.5 text-[10px] ${milestoneBasis === 'netWorth' ? 'text-sky-600 font-medium bg-sky-50 dark:bg-sky-900/20' : 'text-slate-600 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-700'}`}
+                          onClick={() => setMilestoneBasis('netWorth')}
+                        >
+                          Net Worth
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
               <button
                 onClick={() => setShowAddMilestone(!showAddMilestone)}
                 className={`btn-ghost text-xs transition-colors ${showAddMilestone
@@ -372,10 +410,11 @@ export default function App() {
               const isMulti = state.strategies.length > 1;
               if (!isMulti) {
                 // Single strategy: same as before
-                if (result.milestones.length === 0) return null;
+                const msList = milestoneBasis === 'netWorth' ? result.milestonesNetWorth : result.milestones;
+                if (msList.length === 0) return null;
                 return (
                   <div className="flex flex-wrap gap-2">
-                    {result.milestones.map((m, i) => (
+                    {msList.map((m, i) => (
                       <MilestoneBadge
                         key={m.amount}
                         milestone={m}
@@ -391,7 +430,8 @@ export default function App() {
               for (const s of state.strategies) {
                 const res = allResults.get(s.id);
                 if (!res) continue;
-                for (const m of res.milestones) {
+                const msList = milestoneBasis === 'netWorth' ? res.milestonesNetWorth : res.milestones;
+                for (const m of msList) {
                   if (!globalMap.has(m.amount)) {
                     globalMap.set(m.amount, { milestone: m, hits: [] });
                   }
@@ -429,7 +469,7 @@ export default function App() {
                 viewMode={chartViewMode}
                 darkMode={darkMode}
                 onChartModeChange={setChartMode}
-                onViewModeChange={setChartViewMode}
+                onViewModeChange={handleViewModeChange}
                 showMilestones={showMilestones}
               />
             ) : (
@@ -437,7 +477,7 @@ export default function App() {
                 schedule={result.schedule}
                 funds={activeFunds}
                 debts={activeDebts}
-                milestones={showMilestones ? result.milestones : []}
+                milestones={showMilestones ? (milestoneBasis === 'netWorth' ? result.milestonesNetWorth : result.milestones) : []}
                 showReal={state.global.showReal}
                 inflationRate={state.global.inflationRate}
                 timelineMode={state.global.timelineMode}
@@ -445,7 +485,7 @@ export default function App() {
                 viewMode={chartViewMode}
                 darkMode={darkMode}
                 onChartModeChange={setChartMode}
-                onViewModeChange={setChartViewMode}
+                onViewModeChange={handleViewModeChange}
               />
             )}
             <CompositionChart

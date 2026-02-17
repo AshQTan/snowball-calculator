@@ -26,6 +26,13 @@ export function computeProjection(
   const schedule: YearBreakdown[] = [];
   const milestones: Milestone[] = [];
   const milestoneSet = new Set<number>();
+  const milestonesNetWorth: Milestone[] = [];
+  const netWorthMilestoneSet = new Set<number>();
+
+  // per-debt running balances
+  const debtBal: Record<string, number> = {};
+  for (const d of debts) debtBal[d.id] = d.principal;
+  const initialDebtBalance = debts.reduce((s, d) => s + d.principal, 0);
 
   // Combine built-in and custom thresholds
   const allThresholds = [
@@ -40,16 +47,15 @@ export function computeProjection(
     if (totalStartingBalance >= t.amount) {
       milestoneSet.add(t.amount);
     }
+    // Net worth starts as (Assets - Debt), check if already hit
+    if ((totalStartingBalance - initialDebtBalance) >= t.amount) {
+      netWorthMilestoneSet.add(t.amount);
+    }
   }
 
   // per-fund running balances
   const bal: Record<string, number> = {};
   for (const f of funds) bal[f.id] = f.startingBalance;
-
-  // per-debt running balances
-  const debtBal: Record<string, number> = {};
-  for (const d of debts) debtBal[d.id] = d.principal;
-  const initialDebtBalance = debts.reduce((s, d) => s + d.principal, 0);
 
   let cumulativeContributions = 0;
   let cumulativeInterest = 0;
@@ -58,6 +64,7 @@ export function computeProjection(
   let totalIncome = 0;
   let contributionExceedsIncomeYear: number | null = null;
   let debtFreeYear: number | null = null;
+  let positiveNetWorthYear: number | null = null;
 
   // Year 0: starting state before any contributions or growth
   const year0FundBalances: Record<string, number> = {};
@@ -289,6 +296,8 @@ export function computeProjection(
 
     schedule.push(row);
 
+    const currentNW = endBalance - totalDebtRemaining;
+
     for (const t of allThresholds) {
       if (!milestoneSet.has(t.amount) && endBalance >= t.amount) {
         milestoneSet.add(t.amount);
@@ -301,6 +310,22 @@ export function computeProjection(
           customMilestoneId: t.customMilestoneId,
         });
       }
+
+      if (!netWorthMilestoneSet.has(t.amount) && currentNW >= t.amount) {
+        netWorthMilestoneSet.add(t.amount);
+        milestonesNetWorth.push({
+          amount: t.amount,
+          year: y,
+          label: t.label,
+          icon: t.icon,
+          custom: t.custom,
+          customMilestoneId: t.customMilestoneId,
+        });
+      }
+    }
+
+    if (positiveNetWorthYear === null && currentNW > 0) {
+      positiveNetWorthYear = y;
     }
   }
 
@@ -335,6 +360,7 @@ export function computeProjection(
     doublingTimeYears,
     realDoublingTimeYears,
     milestones,
+    milestonesNetWorth,
     contributionExceedsIncomeYear,
     totalDebtInterestPaid: cumulativeDebtInterest,
     totalDebtPayments: cumulativeDebtPayments,
@@ -342,5 +368,6 @@ export function computeProjection(
     remainingDebt: finalDebtBalance,
     debtFreeYear,
     netWorth: finalBalance - finalDebtBalance,
+    positiveNetWorthYear,
   };
 }
