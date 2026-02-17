@@ -4,6 +4,7 @@ import {
   Area,
   BarChart,
   Bar,
+
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,9 +15,9 @@ import {
   Label,
 } from 'recharts';
 import { BarChart3, LineChart, Layers, LayoutGrid, ChevronDown } from 'lucide-react';
-import { Strategy, ProjectionResult, Fund, ChartMode, YearBreakdown } from '../types';
+import { Strategy, ProjectionResult, Fund, ChartMode, ChartViewMode, YearBreakdown } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
-import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, COLOR_DEBT, fundVariants } from '../utils/colors';
 import LegendItem from './LegendItem';
 import ProjectionChartComparison from './ProjectionChartComparison';
 
@@ -40,8 +41,10 @@ interface ProjectionChartGridProps {
   inflationRate: number;
   timelineMode: 'years' | 'retirement';
   chartMode: ChartMode;
+  viewMode: ChartViewMode;
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
+  onViewModeChange: (mode: ChartViewMode) => void;
   showMilestones: boolean;
 }
 
@@ -133,9 +136,35 @@ function buildChartData(
         fundData[`fund_${f.id}_contrib`] = cumFundContrib[f.id] || 0;
         fundData[`fund_${f.id}_interest`] = cumFundInterest[f.id] || 0;
       }
-      return { label, year: row.year, balance, startingBal: row.cumulativeStartingBalance, contributions, interest, ...fundData };
+      const nwBreakdown = (() => {
+        const nw = row.netWorth ?? balance;
+        const totalAssets = balance;
+        if (nw >= 0 && totalAssets > 0) {
+          const s = row.cumulativeStartingBalance;
+          const c = contributions;
+          const i = interest;
+          const ratio = nw / totalAssets;
+          return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
+        }
+        return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
+      })();
+
+      return { label, year: row.year, balance, startingBal: row.cumulativeStartingBalance, contributions, interest, ...fundData, debtBalance: -(row.debtBalance || 0), netWorth: row.netWorth ?? balance, ...nwBreakdown };
     }
-    return { label, year: row.year, balance, startingBal: row.cumulativeStartingBalance, contributions, interest };
+    return {
+      label, year: row.year, balance, startingBal: row.cumulativeStartingBalance, contributions, interest, debtBalance: -(row.debtBalance || 0), netWorth: row.netWorth ?? balance, ...(() => {
+        const nw = row.netWorth ?? balance;
+        const totalAssets = balance;
+        if (nw >= 0 && totalAssets > 0) {
+          const s = row.cumulativeStartingBalance;
+          const c = contributions;
+          const i = interest;
+          const ratio = nw / totalAssets;
+          return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
+        }
+        return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
+      })()
+    };
   });
 }
 
@@ -146,8 +175,10 @@ export default function ProjectionChartGrid({
   inflationRate,
   timelineMode,
   chartMode,
+  viewMode,
   darkMode,
   onChartModeChange,
+  onViewModeChange,
   showMilestones,
 }: ProjectionChartGridProps) {
   const [compareView, setCompareView] = useState<CompareView>('side-by-side');
@@ -197,6 +228,7 @@ export default function ProjectionChartGrid({
 
   // Any strategy has many funds?
   const anyHasManyFunds = strategies.some((s) => s.funds.length > 1);
+  const hasDebts = strategies.some((s) => (s.debts || []).some((d) => d.principal > 0));
 
   // Milestone data per strategy — chevronCounts are globally consistent
   const allMilestoneData = useMemo(() => {
@@ -427,6 +459,18 @@ export default function ProjectionChartGrid({
               <div className="absolute bottom-full right-0 mb-2 w-44 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">Overlay all strategies on a single chart to directly compare their growth curves.</div>
             </button>
           </div>
+          {hasDebts && (
+            <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 text-[11px]">
+              <button
+                className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'assets' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onViewModeChange('assets')}
+              >Assets</button>
+              <button
+                className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'networth' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onViewModeChange('networth')}
+              >Net Worth</button>
+            </div>
+          )}
           {/* Line / Bar toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
@@ -512,6 +556,12 @@ export default function ProjectionChartGrid({
                             </Fragment>
                           );
                         })}
+                        {hasDebts && (
+                          <linearGradient id={`debtGrad_${strategy.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={COLOR_DEBT} stopOpacity={0.4} />
+                            <stop offset="100%" stopColor={COLOR_DEBT} stopOpacity={0.1} />
+                          </linearGradient>
+                        )}
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                       <XAxis
@@ -540,36 +590,48 @@ export default function ProjectionChartGrid({
                         strokeDasharray="3 3"
                         strokeWidth={1}
                       />
-                      {hasManyFunds && effectiveStackView === 'split' ? (
-                        funds.map((fund) => {
-                          const v = fundVariants(fund.color, darkMode);
-                          return (
-                            <Fragment key={fund.id}>
-                              <Area type="monotone" dataKey={`fund_${fund.id}_starting`} stackId="stack" stroke={v.starting} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'starting')})`} dot={false} />
-                              <Area type="monotone" dataKey={`fund_${fund.id}_contrib`} stackId="stack" stroke={v.contributions} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'contrib')})`} dot={false} />
-                              <Area type="monotone" dataKey={`fund_${fund.id}_interest`} stackId="stack" stroke={v.interest} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'interest')})`} dot={false} />
-                            </Fragment>
-                          );
-                        })
-                      ) : hasManyFunds && effectiveStackView === 'by-fund' ? (
-                        funds.map((fund) => (
-                          <Area
-                            key={fund.id}
-                            type="monotone"
-                            dataKey={`fund_${fund.id}`}
-                            stackId="stack"
-                            stroke={fund.color}
-                            strokeWidth={1.5}
-                            fill={fund.color}
-                            fillOpacity={0.3}
-                            dot={false}
-                          />
-                        ))
+                      {viewMode === 'networth' ? (
+                        <>
+                          <Area type="monotone" dataKey="nw_starting" stackId="nw" stroke={COLOR_STARTING} strokeWidth={1.5} fill={`url(#startGrad_${strategy.id})`} dot={false} />
+                          <Area type="monotone" dataKey="nw_contributions" stackId="nw" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill={`url(#contribGrad_${strategy.id})`} dot={false} />
+                          <Area type="monotone" dataKey="nw_interest" stackId="nw" stroke={COLOR_INTEREST} strokeWidth={1.5} fill={`url(#interestGrad_${strategy.id})`} dot={false} />
+                          <Area type="monotone" dataKey="nw_debt" stackId="nw" stroke={COLOR_DEBT} strokeWidth={1.5} fill={`url(#debtGrad_${strategy.id})`} dot={false} />
+                          <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
+                        </>
                       ) : (
                         <>
-                          <Area type="monotone" dataKey="startingBal" stackId="stack" stroke={COLOR_STARTING} strokeWidth={1.5} fill={`url(#startGrad_${strategy.id})`} dot={false} />
-                          <Area type="monotone" dataKey="contributions" stackId="stack" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill={`url(#contribGrad_${strategy.id})`} dot={false} />
-                          <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill={`url(#interestGrad_${strategy.id})`} dot={false} />
+                          {hasManyFunds && effectiveStackView === 'split' ? (
+                            funds.map((fund) => {
+                              const v = fundVariants(fund.color, darkMode);
+                              return (
+                                <Fragment key={fund.id}>
+                                  <Area type="monotone" dataKey={`fund_${fund.id}_starting`} stackId="stack" stroke={v.starting} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'starting')})`} dot={false} />
+                                  <Area type="monotone" dataKey={`fund_${fund.id}_contrib`} stackId="stack" stroke={v.contributions} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'contrib')})`} dot={false} />
+                                  <Area type="monotone" dataKey={`fund_${fund.id}_interest`} stackId="stack" stroke={v.interest} strokeWidth={1.5} fill={`url(#${fundGradientId(strategy.id, fund.id, 'interest')})`} dot={false} />
+                                </Fragment>
+                              );
+                            })
+                          ) : hasManyFunds && effectiveStackView === 'by-fund' ? (
+                            funds.map((fund) => (
+                              <Area
+                                key={fund.id}
+                                type="monotone"
+                                dataKey={`fund_${fund.id}`}
+                                stackId="stack"
+                                stroke={fund.color}
+                                strokeWidth={1.5}
+                                fill={fund.color}
+                                fillOpacity={0.3}
+                                dot={false}
+                              />
+                            ))
+                          ) : (
+                            <>
+                              <Area type="monotone" dataKey="startingBal" stackId="stack" stroke={COLOR_STARTING} strokeWidth={1.5} fill={`url(#startGrad_${strategy.id})`} dot={false} />
+                              <Area type="monotone" dataKey="contributions" stackId="stack" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill={`url(#contribGrad_${strategy.id})`} dot={false} />
+                              <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill={`url(#interestGrad_${strategy.id})`} dot={false} />
+                            </>
+                          )}
                         </>
                       )}
                       {(allMilestoneData.get(strategy.id) || []).map((m) => (
@@ -620,34 +682,46 @@ export default function ProjectionChartGrid({
                         strokeDasharray="3 3"
                         strokeWidth={1}
                       />
-                      {hasManyFunds && effectiveStackView === 'split' ? (
-                        funds.map((fund, i) => {
-                          const v = fundVariants(fund.color, darkMode);
-                          const isLast = i === funds.length - 1;
-                          return (
-                            <Fragment key={fund.id}>
-                              <Bar dataKey={`fund_${fund.id}_starting`} stackId="stack" fill={v.starting} />
-                              <Bar dataKey={`fund_${fund.id}_contrib`} stackId="stack" fill={v.contributions} />
-                              <Bar dataKey={`fund_${fund.id}_interest`} stackId="stack" fill={v.interest} radius={isLast ? [2, 2, 0, 0] : undefined} />
-                            </Fragment>
-                          );
-                        })
-                      ) : hasManyFunds && effectiveStackView === 'by-fund' ? (
-                        funds.map((fund) => (
-                          <Bar
-                            key={fund.id}
-                            dataKey={`fund_${fund.id}`}
-                            stackId="stack"
-                            fill={fund.color}
-                            name={fund.name}
-                            radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
-                          />
-                        ))
+                      {viewMode === 'networth' ? (
+                        <>
+                          <Bar dataKey="nw_starting" stackId="nw" fill={COLOR_STARTING} name="Starting Balance" />
+                          <Bar dataKey="nw_contributions" stackId="nw" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
+                          <Bar dataKey="nw_interest" stackId="nw" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                          <Bar dataKey="nw_debt" stackId="nw" fill={COLOR_DEBT} name="Debt" />
+                          <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
+                        </>
                       ) : (
                         <>
-                          <Bar dataKey="startingBal" stackId="stack" fill={COLOR_STARTING} name="Starting Balance" />
-                          <Bar dataKey="contributions" stackId="stack" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
-                          <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                          {hasManyFunds && effectiveStackView === 'split' ? (
+                            funds.map((fund, i) => {
+                              const v = fundVariants(fund.color, darkMode);
+                              const isLast = i === funds.length - 1;
+                              return (
+                                <Fragment key={fund.id}>
+                                  <Bar dataKey={`fund_${fund.id}_starting`} stackId="stack" fill={v.starting} />
+                                  <Bar dataKey={`fund_${fund.id}_contrib`} stackId="stack" fill={v.contributions} />
+                                  <Bar dataKey={`fund_${fund.id}_interest`} stackId="stack" fill={v.interest} radius={isLast ? [2, 2, 0, 0] : undefined} />
+                                </Fragment>
+                              );
+                            })
+                          ) : hasManyFunds && effectiveStackView === 'by-fund' ? (
+                            funds.map((fund) => (
+                              <Bar
+                                key={fund.id}
+                                dataKey={`fund_${fund.id}`}
+                                stackId="stack"
+                                fill={fund.color}
+                                name={fund.name}
+                                radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
+                              />
+                            ))
+                          ) : (
+                            <>
+                              <Bar dataKey="startingBal" stackId="stack" fill={COLOR_STARTING} name="Starting Balance" />
+                              <Bar dataKey="contributions" stackId="stack" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
+                              <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                            </>
+                          )}
                         </>
                       )}
                       {(allMilestoneData.get(strategy.id) || []).map((m) => (

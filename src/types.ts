@@ -31,6 +31,7 @@ export interface Debt {
 export type ContributionFrequency = 'monthly' | 'annually';
 export type TimelineMode = 'years' | 'retirement';
 export type ChartMode = 'line' | 'bar';
+export type ChartViewMode = 'assets' | 'networth';
 
 export interface GlobalSettings {
   timelineMode: TimelineMode;

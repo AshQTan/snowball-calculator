@@ -3,6 +3,8 @@
 export const COLOR_STARTING = '#6366f1'; // indigo
 export const COLOR_CONTRIBUTIONS = '#22c55e'; // green
 export const COLOR_INTEREST = '#f59e0b'; // amber
+export const COLOR_DEBT = '#f43f5e'; // rose
+export const COLOR_NETWORTH = '#8b5cf6'; // violet
 
 export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');

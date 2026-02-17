@@ -4,30 +4,35 @@ import {
   Area,
   BarChart,
   Bar,
+
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   ReferenceDot,
+  ReferenceLine,
   Label,
 } from 'recharts';
 import { BarChart3, LineChart, ChevronDown } from 'lucide-react';
-import { YearBreakdown, Fund, Milestone, ChartMode } from '../types';
+import { YearBreakdown, Fund, Debt, Milestone, ChartMode, ChartViewMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
-import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, fundVariants } from '../utils/colors';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, COLOR_DEBT, COLOR_NETWORTH, fundVariants } from '../utils/colors';
 import LegendItem from './LegendItem';
 
 interface ProjectionChartProps {
   schedule: YearBreakdown[];
   funds: Fund[];
+  debts: Debt[];
   milestones: Milestone[];
   showReal: boolean;
   inflationRate: number;
   timelineMode: 'years' | 'retirement';
   chartMode: ChartMode;
+  viewMode: ChartViewMode;
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
+  onViewModeChange: (mode: ChartViewMode) => void;
 }
 
 // Custom ReferenceDot label that renders stacked SVG chevrons or an emoji icon
@@ -100,15 +105,19 @@ function fundGradientId(fundId: string, kind: 'starting' | 'contrib' | 'interest
 export default function ProjectionChart({
   schedule,
   funds,
+  debts,
   milestones,
   showReal,
   inflationRate,
   timelineMode,
   chartMode,
+  viewMode,
   darkMode,
   onChartModeChange,
+  onViewModeChange,
 }: ProjectionChartProps) {
   const hasManyFunds = funds.length > 1;
+  const hasDebts = debts.some((d) => d.principal > 0);
   const [stackView, setStackView] = useState<BarViewMode>('split');
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
   const tickColor = darkMode ? '#737373' : '#64748b';
@@ -149,6 +158,21 @@ export default function ProjectionChart({
           contributions,
           interest,
           ...fundData,
+          debtBalance: -(row.debtBalance || 0),
+          netWorth: row.netWorth ?? balance,
+          // Proportional NW breakdown for coloring
+          ...(() => {
+            const nw = row.netWorth ?? balance;
+            const totalAssets = balance;
+            if (nw >= 0 && totalAssets > 0) {
+              const s = row.cumulativeStartingBalance;
+              const c = contributions;
+              const i = interest;
+              const ratio = nw / totalAssets;
+              return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
+            }
+            return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
+          })(),
         };
       } else {
         // single fund: stacked by starting balance / contributions / interest
@@ -159,6 +183,21 @@ export default function ProjectionChart({
           startingBal: row.cumulativeStartingBalance,
           contributions,
           interest,
+          debtBalance: -(row.debtBalance || 0),
+          netWorth: row.netWorth ?? balance,
+          // Proportional NW breakdown for coloring
+          ...(() => {
+            const nw = row.netWorth ?? balance;
+            const totalAssets = balance;
+            if (nw >= 0 && totalAssets > 0) {
+              const s = row.cumulativeStartingBalance;
+              const c = contributions;
+              const i = interest;
+              const ratio = nw / totalAssets;
+              return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
+            }
+            return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
+          })(),
         };
       }
     });
@@ -227,6 +266,18 @@ export default function ProjectionChart({
               </div>
             </div>
           )}
+          {hasDebts && (
+            <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 text-[11px]">
+              <button
+                className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'assets' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onViewModeChange('assets')}
+              >Assets</button>
+              <button
+                className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'networth' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                onClick={() => onViewModeChange('networth')}
+              >Net Worth</button>
+            </div>
+          )}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button
               className={`p-1.5 rounded-md transition-all group relative ${chartMode === 'line' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
@@ -282,6 +333,13 @@ export default function ProjectionChart({
                     </Fragment>
                   );
                 })}
+
+                {hasDebts && (
+                  <linearGradient id="debtGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLOR_DEBT} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={COLOR_DEBT} stopOpacity={0.1} />
+                  </linearGradient>
+                )}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
@@ -298,37 +356,49 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} />} />
-              {hasManyFunds && stackView === 'split' ? (
-                funds.map((fund) => {
-                  const v = fundVariants(fund.color, darkMode);
-                  return (
-                    <Fragment key={fund.id}>
-                      <Area type="monotone" dataKey={`fund_${fund.id}_starting`} stackId="stack" stroke={v.starting} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'starting')})`} dot={false} />
-                      <Area type="monotone" dataKey={`fund_${fund.id}_contrib`} stackId="stack" stroke={v.contributions} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'contrib')})`} dot={false} />
-                      <Area type="monotone" dataKey={`fund_${fund.id}_interest`} stackId="stack" stroke={v.interest} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'interest')})`} dot={false} />
-                    </Fragment>
-                  );
-                })
-              ) : hasManyFunds && stackView === 'by-fund' ? (
-                funds.map((fund) => (
-                  <Area
-                    key={fund.id}
-                    type="monotone"
-                    dataKey={`fund_${fund.id}`}
-                    stackId="stack"
-                    stroke={fund.color}
-                    strokeWidth={1.5}
-                    fill={fund.color}
-                    fillOpacity={0.3}
-                    dot={false}
-                  />
-                ))
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} viewMode={viewMode} />} />
+              {viewMode === 'networth' ? (
+                <>
+                  <Area type="monotone" dataKey="nw_starting" stackId="nw" stroke={COLOR_STARTING} strokeWidth={1.5} fill="url(#startGrad)" dot={false} />
+                  <Area type="monotone" dataKey="nw_contributions" stackId="nw" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill="url(#contribGrad)" dot={false} />
+                  <Area type="monotone" dataKey="nw_interest" stackId="nw" stroke={COLOR_INTEREST} strokeWidth={1.5} fill="url(#interestGrad)" dot={false} />
+                  <Area type="monotone" dataKey="nw_debt" stackId="nw" stroke={COLOR_DEBT} strokeWidth={1.5} fill="url(#debtGrad)" dot={false} />
+                  <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
+                </>
               ) : (
                 <>
-                  <Area type="monotone" dataKey="startingBal" stackId="stack" stroke={COLOR_STARTING} strokeWidth={1.5} fill="url(#startGrad)" dot={false} />
-                  <Area type="monotone" dataKey="contributions" stackId="stack" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill="url(#contribGrad)" dot={false} />
-                  <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill="url(#interestGrad)" dot={false} />
+                  {hasManyFunds && stackView === 'split' ? (
+                    funds.map((fund) => {
+                      const v = fundVariants(fund.color, darkMode);
+                      return (
+                        <Fragment key={fund.id}>
+                          <Area type="monotone" dataKey={`fund_${fund.id}_starting`} stackId="stack" stroke={v.starting} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'starting')})`} dot={false} />
+                          <Area type="monotone" dataKey={`fund_${fund.id}_contrib`} stackId="stack" stroke={v.contributions} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'contrib')})`} dot={false} />
+                          <Area type="monotone" dataKey={`fund_${fund.id}_interest`} stackId="stack" stroke={v.interest} strokeWidth={1.5} fill={`url(#${fundGradientId(fund.id, 'interest')})`} dot={false} />
+                        </Fragment>
+                      );
+                    })
+                  ) : hasManyFunds && stackView === 'by-fund' ? (
+                    funds.map((fund) => (
+                      <Area
+                        key={fund.id}
+                        type="monotone"
+                        dataKey={`fund_${fund.id}`}
+                        stackId="stack"
+                        stroke={fund.color}
+                        strokeWidth={1.5}
+                        fill={fund.color}
+                        fillOpacity={0.3}
+                        dot={false}
+                      />
+                    ))
+                  ) : (
+                    <>
+                      <Area type="monotone" dataKey="startingBal" stackId="stack" stroke={COLOR_STARTING} strokeWidth={1.5} fill="url(#startGrad)" dot={false} />
+                      <Area type="monotone" dataKey="contributions" stackId="stack" stroke={COLOR_CONTRIBUTIONS} strokeWidth={1.5} fill="url(#contribGrad)" dot={false} />
+                      <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill="url(#interestGrad)" dot={false} />
+                    </>
+                  )}
                 </>
               )}
               {milestoneData.map((m) => (
@@ -362,38 +432,50 @@ export default function ProjectionChart({
                 tickFormatter={(v) => formatCurrencyCompact(v)}
                 width={70}
               />
-              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} />} />
-              {hasManyFunds && stackView === 'split' ? (
-                // stacked by fund, each split into starting/contributions/interest
-                funds.map((fund, i) => {
-                  const v = fundVariants(fund.color, darkMode);
-                  const isLast = i === funds.length - 1;
-                  return (
-                    <Fragment key={fund.id}>
-                      <Bar dataKey={`fund_${fund.id}_starting`} stackId="stack" fill={v.starting} />
-                      <Bar dataKey={`fund_${fund.id}_contrib`} stackId="stack" fill={v.contributions} />
-                      <Bar dataKey={`fund_${fund.id}_interest`} stackId="stack" fill={v.interest} radius={isLast ? [2, 2, 0, 0] : undefined} />
-                    </Fragment>
-                  );
-                })
-              ) : hasManyFunds && stackView === 'by-fund' ? (
-                // stacked by fund (solid colors)
-                funds.map((fund) => (
-                  <Bar
-                    key={fund.id}
-                    dataKey={`fund_${fund.id}`}
-                    stackId="stack"
-                    fill={fund.color}
-                    name={fund.name}
-                    radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
-                  />
-                ))
-              ) : (
-                // stacked by type: starting balance / contributions / interest
+              <Tooltip content={<ChartTooltip funds={funds} showReal={showReal} timelineMode={timelineMode} darkMode={darkMode} barView={hasManyFunds ? stackView : undefined} viewMode={viewMode} />} />
+              {viewMode === 'networth' ? (
                 <>
-                  <Bar dataKey="startingBal" stackId="stack" fill={COLOR_STARTING} name="Starting Balance" />
-                  <Bar dataKey="contributions" stackId="stack" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
-                  <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="nw_starting" stackId="nw" fill={COLOR_STARTING} name="Starting Balance" />
+                  <Bar dataKey="nw_contributions" stackId="nw" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
+                  <Bar dataKey="nw_interest" stackId="nw" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="nw_debt" stackId="nw" fill={COLOR_DEBT} name="Debt" />
+                  <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
+                </>
+              ) : (
+                <>
+                  {hasManyFunds && stackView === 'split' ? (
+                    // stacked by fund, each split into starting/contributions/interest
+                    funds.map((fund, i) => {
+                      const v = fundVariants(fund.color, darkMode);
+                      const isLast = i === funds.length - 1;
+                      return (
+                        <Fragment key={fund.id}>
+                          <Bar dataKey={`fund_${fund.id}_starting`} stackId="stack" fill={v.starting} />
+                          <Bar dataKey={`fund_${fund.id}_contrib`} stackId="stack" fill={v.contributions} />
+                          <Bar dataKey={`fund_${fund.id}_interest`} stackId="stack" fill={v.interest} radius={isLast ? [2, 2, 0, 0] : undefined} />
+                        </Fragment>
+                      );
+                    })
+                  ) : hasManyFunds && stackView === 'by-fund' ? (
+                    // stacked by fund (solid colors)
+                    funds.map((fund) => (
+                      <Bar
+                        key={fund.id}
+                        dataKey={`fund_${fund.id}`}
+                        stackId="stack"
+                        fill={fund.color}
+                        name={fund.name}
+                        radius={fund.id === funds[funds.length - 1].id ? [2, 2, 0, 0] : undefined}
+                      />
+                    ))
+                  ) : (
+                    // stacked by type: starting balance / contributions / interest
+                    <>
+                      <Bar dataKey="startingBal" stackId="stack" fill={COLOR_STARTING} name="Starting Balance" />
+                      <Bar dataKey="contributions" stackId="stack" fill={COLOR_CONTRIBUTIONS} name="Contributions" />
+                      <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
+                    </>
+                  )}
                 </>
               )}
               {milestoneData.map((m) => (
@@ -483,6 +565,9 @@ export default function ProjectionChart({
             <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
           </div>
         ))}
+        {viewMode === 'networth' && hasDebts && (
+          <LegendItem color={COLOR_DEBT} label="Debt" type={chartMode === 'line' ? 'line' : 'square'} />
+        )}
       </div>
     </div>
   );
@@ -504,6 +589,7 @@ interface ChartTooltipProps {
   timelineMode: 'years' | 'retirement';
   darkMode: boolean;
   barView?: BarViewMode;
+  viewMode?: ChartViewMode;
 }
 
 function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView }: ChartTooltipProps) {
@@ -511,6 +597,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
   const pct = (v: number) => balance > 0 ? `${Math.round(v / balance * 100)}%` : '—';
+  const hasDebtData = (data?.debtBalance ?? 0) !== 0;
 
   return (
     <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded-lg p-3 shadow-xl min-w-[180px]">
@@ -605,6 +692,29 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
           )
         ) : (
           <TooltipByType data={data} pct={pct} />
+        )}
+        {hasDebtData && (
+          <>
+            <div className="border-t border-slate-100 dark:border-neutral-800 my-1 pt-1" />
+            <div className="flex justify-between gap-4">
+              <span className="text-xs flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: COLOR_DEBT }} />
+                Debt Balance
+              </span>
+              <span className="text-xs font-medium text-slate-600 dark:text-neutral-300 tabular-nums">
+                {formatCurrency(Math.abs(data?.debtBalance ?? 0))}
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-xs flex items-center gap-1">
+                <span className="w-2 h-0.5 border-t-2 border-dashed inline-block" style={{ borderColor: COLOR_NETWORTH }} />
+                Net Worth
+              </span>
+              <span className="text-xs font-medium tabular-nums" style={{ color: (data?.netWorth ?? 0) >= 0 ? COLOR_NETWORTH : COLOR_DEBT }}>
+                {formatCurrency(data?.netWorth ?? 0)}
+              </span>
+            </div>
+          </>
         )}
         {showReal && <p className="text-[10px] text-slate-400 dark:text-neutral-600 mt-1">In today's dollars</p>}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { AppState, GlobalSettings, Fund, Debt, ChartMode, CustomMilestone, Milestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
+import { AppState, GlobalSettings, Fund, Debt, ChartMode, ChartViewMode, CustomMilestone, Milestone, Strategy, MILESTONE_ICONS, STRATEGY_COLORS, FUND_COLORS, MAX_STRATEGIES, getDefaultState, createStrategy, createFund } from './types';
 import { computeProjection } from './utils/calculations';
 import { formatCompact } from './utils/formatters';
 import { stateToURL, stateFromURL, exportToCSV } from './utils/sharing';
@@ -19,6 +19,7 @@ export default function App() {
   const [showMilestones, setShowMilestones] = useState(true);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [chartViewMode, setChartViewMode] = useState<ChartViewMode>('assets');
   const [newMsName, setNewMsName] = useState('');
   const [newMsAmount, setNewMsAmount] = useState('');
   const [newMsIcon, setNewMsIcon] = useState(MILESTONE_ICONS[0]);
@@ -425,21 +426,26 @@ export default function App() {
                 inflationRate={state.global.inflationRate}
                 timelineMode={state.global.timelineMode}
                 chartMode={state.chartMode}
+                viewMode={chartViewMode}
                 darkMode={darkMode}
                 onChartModeChange={setChartMode}
+                onViewModeChange={setChartViewMode}
                 showMilestones={showMilestones}
               />
             ) : (
               <ProjectionChart
                 schedule={result.schedule}
                 funds={activeFunds}
+                debts={activeDebts}
                 milestones={showMilestones ? result.milestones : []}
                 showReal={state.global.showReal}
                 inflationRate={state.global.inflationRate}
                 timelineMode={state.global.timelineMode}
                 chartMode={state.chartMode}
+                viewMode={chartViewMode}
                 darkMode={darkMode}
                 onChartModeChange={setChartMode}
+                onViewModeChange={setChartViewMode}
               />
             )}
             <CompositionChart
