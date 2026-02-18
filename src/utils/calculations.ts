@@ -9,6 +9,7 @@ import {
   MILESTONE_THRESHOLDS,
 } from '../types';
 import { formatCompact } from './formatters';
+import { COLOR_DEBT } from './colors';
 
 export function computeProjection(
   global: GlobalSettings,
@@ -29,6 +30,10 @@ export function computeProjection(
   const milestonesNetWorth: Milestone[] = [];
   const netWorthMilestoneSet = new Set<number>();
 
+  // Event tracking
+  const paidDebts = new Set<string>();
+  let payoffCounter = 0;
+
   // per-debt running balances
   const debtBal: Record<string, number> = {};
   for (const d of debts) debtBal[d.id] = d.principal;
@@ -41,6 +46,7 @@ export function computeProjection(
   ].sort((a, b) => a.amount - b.amount);
 
   const totalStartingBalance = funds.reduce((s, f) => s + f.startingBalance, 0);
+  let previousNW = totalStartingBalance - initialDebtBalance;
 
   // pre-mark milestones already achieved by starting balance
   for (const t of allThresholds) {
@@ -48,7 +54,7 @@ export function computeProjection(
       milestoneSet.add(t.amount);
     }
     // Net worth starts as (Assets - Debt), check if already hit
-    if ((totalStartingBalance - initialDebtBalance) >= t.amount) {
+    if (previousNW >= t.amount) {
       netWorthMilestoneSet.add(t.amount);
     }
   }
@@ -298,6 +304,55 @@ export function computeProjection(
 
     const currentNW = endBalance - totalDebtRemaining;
 
+    // Event Milestone: Zero Net Worth
+    if (previousNW < 0 && currentNW >= 0) {
+      milestonesNetWorth.push({
+        amount: 0,
+        year: y,
+        label: 'Positive Net Worth',
+        icon: '+',
+        color: '#22c55e', // Green
+        custom: true,
+      });
+      // Also add to assets list for visibility
+      milestones.push({
+        amount: Math.max(0, currentNW), // Ensure it's at least 0 visually
+        year: y,
+        label: 'Positive Net Worth',
+        icon: '+',
+        color: '#22c55e', // Green
+        custom: true,
+      });
+    }
+
+    // Event Milestone: Debt Payoff
+    for (const debt of debts) {
+      if (debt.principal > 0 && !paidDebts.has(debt.id) && (debtBal[debt.id] || 0) <= 0) {
+        paidDebts.add(debt.id);
+        payoffCounter++;
+        const label = `${debt.name} Paid Off`;
+
+        milestones.push({
+          amount: endBalance,
+          year: y,
+          label,
+          custom: true,
+          color: COLOR_DEBT,
+          inverted: true,
+          chevronCount: payoffCounter,
+        });
+        milestonesNetWorth.push({
+          amount: currentNW,
+          year: y,
+          label,
+          custom: true,
+          color: COLOR_DEBT,
+          inverted: true,
+          chevronCount: payoffCounter,
+        });
+      }
+    }
+
     for (const t of allThresholds) {
       if (!milestoneSet.has(t.amount) && endBalance >= t.amount) {
         milestoneSet.add(t.amount);
@@ -327,6 +382,8 @@ export function computeProjection(
     if (positiveNetWorthYear === null && currentNW > 0) {
       positiveNetWorthYear = y;
     }
+
+    previousNW = currentNW;
   }
 
   const finalBalance = schedule.length > 0 ? schedule[schedule.length - 1].endBalance : totalStartingBalance;

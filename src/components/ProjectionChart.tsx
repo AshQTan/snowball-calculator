@@ -36,59 +36,45 @@ interface ProjectionChartProps {
 }
 
 // Custom ReferenceDot label that renders stacked SVG chevrons or an emoji icon
-function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string }) {
-  const { viewBox, chevronCount = 1, icon } = props;
+function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string; inverted?: boolean }) {
+  const { viewBox, chevronCount = 1, icon, color = '#7dd3fc', inverted = false } = props;
   if (!viewBox) return null;
   const cx = viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x;
   const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
   if (icon) {
     return (
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="14" dominantBaseline="auto">
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="14" dominantBaseline="auto" fill={color}>
         {icon}
       </text>
     );
   }
   const clamped = Math.min(chevronCount, 7);
   const spacing = 6;
-  const startY = cy - 14 - (clamped - 1) * spacing;
+
   return (
     <g>
-      {Array.from({ length: clamped }).map((_, i) => (
-        <polyline
-          key={i}
-          points={`${cx - 5},${startY + i * spacing + 4} ${cx},${startY + i * spacing} ${cx + 5},${startY + i * spacing + 4}`}
-          stroke="#7dd3fc"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      ))}
+      {Array.from({ length: clamped }).map((_, i) => {
+        const offset = (clamped - 1 - i) * spacing;
+        const currentY = (cy - 14) - offset;
+
+        return (
+          <polyline
+            key={i}
+            points={inverted
+              ? `${cx - 5},${currentY} ${cx},${currentY + 4} ${cx + 5},${currentY}` // Pointing down v
+              : `${cx - 5},${currentY + 4} ${cx},${currentY} ${cx + 5},${currentY + 4}` // Pointing up ^
+            }
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        );
+      })}
     </g>
   );
 }
-
-// Legend chevron stack
-function LegendChevrons({ count }: { count: number }) {
-  const clamped = Math.min(count, 7);
-  const h = 4 + clamped * 5;
-  return (
-    <svg width="12" height={h} viewBox={`0 0 12 ${h}`} fill="none" className="flex-shrink-0">
-      {Array.from({ length: clamped }).map((_, i) => (
-        <polyline
-          key={i}
-          points={`1,${h - i * 5 - 1} 6,${h - i * 5 - 5} 11,${h - i * 5 - 1}`}
-          stroke="#7dd3fc"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      ))}
-    </svg>
-  );
-}
-
 
 
 type BarViewMode = 'split' | 'by-fund' | 'by-type';
@@ -213,9 +199,18 @@ export default function ProjectionChart({
     // In multi-fund split/by-fund views, stacked values are nominal,
     // so milestone dots must use nominal balance to align with stack top.
     const useNominal = hasManyFunds && stackView !== 'by-type';
-    return milestones.map((m, i) => {
+    return milestones.map((m) => {
       const row = schedule.find((s) => s.year === m.year);
-      const balance = (showReal && !useNominal) ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
+
+      // Determine Y value based on view mode and what the milestone represents
+      let balance = 0;
+      if (viewMode === 'networth') {
+        const nominalNW = row?.netWorth ?? 0;
+        balance = showReal ? (nominalNW / (row ? Math.pow(1 + inflationRate / 100, row.year) : 1)) : nominalNW;
+      } else {
+        const nominalBal = row?.endBalance ?? 0;
+        balance = (showReal && !useNominal) ? (row?.realEndBalance || 0) : nominalBal;
+      }
       // Must match chartData label format exactly
       const xLabel =
         timelineMode === 'retirement' && row?.age
@@ -225,8 +220,10 @@ export default function ProjectionChart({
         ...m,
         balance,
         xLabel,
-        chevronCount: i + 1,
+        chevronCount: m.chevronCount || (milestones.filter(x => !x.chevronCount && !x.icon && x.amount < m.amount).length + 1),
         label: `${m.label}`,
+        color: m.color,
+        inverted: m.inverted,
       };
     });
   }, [milestones, schedule, showReal, timelineMode, hasManyFunds, stackView]);
@@ -408,6 +405,7 @@ export default function ProjectionChart({
                   {hasDebts && (
                     <Area type="monotone" dataKey="debtBalance" stackId="debt" stroke={COLOR_DEBT} strokeWidth={1.5} fill="url(#debtGrad)" dot={false} />
                   )}
+                  <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               )}
               {milestoneData.map((m) => (
@@ -416,11 +414,11 @@ export default function ProjectionChart({
                   x={m.xLabel}
                   y={m.balance}
                   r={4}
-                  fill="#7dd3fc"
-                  stroke="#7dd3fc"
+                  fill={m.color || '#7dd3fc'}
+                  stroke={m.color || '#7dd3fc'}
                   strokeWidth={0}
                 >
-                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} />} />
+                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} inverted={m.inverted} />} />
                 </ReferenceDot>
               ))}
             </AreaChart>
@@ -488,6 +486,7 @@ export default function ProjectionChart({
                   {hasDebts && (
                     <Bar dataKey="debtBalance" stackId="debt" fill={COLOR_DEBT} name="Debt" />
                   )}
+                  <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               )}
               {milestoneData.map((m) => (
@@ -499,7 +498,7 @@ export default function ProjectionChart({
                   fill="none"
                   stroke="none"
                 >
-                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} />} />
+                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} inverted={m.inverted} />} />
                 </ReferenceDot>
               ))}
             </BarChart>
@@ -566,17 +565,7 @@ export default function ProjectionChart({
             <LegendItem color={COLOR_STARTING} label="Starting Balance" type="square" />
           </>
         )}
-        {/* Milestones legend entries with distinct symbols */}
-        {milestoneData.map((m) => (
-          <div key={m.amount} className="flex items-center gap-1.5">
-            {m.icon ? (
-              <span className="text-sm leading-none">{m.icon}</span>
-            ) : (
-              <LegendChevrons count={m.chevronCount} />
-            )}
-            <span className="text-xs text-slate-400 dark:text-neutral-500">{m.label}</span>
-          </div>
-        ))}
+
         {hasDebts && (
           <LegendItem color={COLOR_DEBT} label="Debt" type={chartMode === 'line' ? 'line' : 'square'} />
         )}

@@ -87,12 +87,10 @@ interface SummaryStatsProps {
   result: ProjectionResult;
   showReal: boolean;
   strategies?: Strategy[];
-  activeStrategyId?: string;
   allResults?: Map<string, ProjectionResult>;
-  onSwitchStrategy?: (id: string) => void;
 }
 
-export default function SummaryStats({ result, showReal, strategies, activeStrategyId, allResults, onSwitchStrategy }: SummaryStatsProps) {
+export default function SummaryStats({ result, showReal, strategies, allResults }: SummaryStatsProps) {
   const { finalBalance, finalRealBalance, totalContributed, totalIncome, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
   const displayBalance = showReal ? finalRealBalance : finalBalance;
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
@@ -257,22 +255,28 @@ export default function SummaryStats({ result, showReal, strategies, activeStrat
   );
 }
 
-function ChevronStack({ count }: { count: number }) {
+function ChevronStack({ count, color = '#7dd3fc', inverted = false }: { count: number; color?: string; inverted?: boolean }) {
   const clamped = Math.min(count, 7);
   const h = 6 + clamped * 5;
   return (
     <svg width="14" height={h} viewBox={`0 0 14 ${h}`} fill="none" className="flex-shrink-0">
-      {Array.from({ length: clamped }).map((_, i) => (
-        <polyline
-          key={i}
-          points={`2,${h - i * 5 - 2} 7,${h - i * 5 - 7} 12,${h - i * 5 - 2}`}
-          stroke="#7dd3fc"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      ))}
+      {Array.from({ length: clamped }).map((_, i) => {
+        const y = h - i * 5 - 7;
+        return (
+          <polyline
+            key={i}
+            points={inverted
+              ? `2,${y} 7,${y + 5} 12,${y}` // Pointing down
+              : `2,${y + 5} 7,${y} 12,${y + 5}` // Pointing up
+            }
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        );
+      })}
     </svg>
   );
 }
@@ -289,9 +293,9 @@ export function MilestoneBadge({ milestone, chevronCount, onClick, strategyHits 
         }`}
     >
       {milestone.icon ? (
-        <span className="text-sm leading-none">{milestone.icon}</span>
+        <span className="text-sm leading-none" style={{ color: milestone.color }}>{milestone.icon}</span>
       ) : (
-        <ChevronStack count={chevronCount} />
+        <ChevronStack count={chevronCount} color={milestone.color} inverted={milestone.inverted} />
       )}
       <span className="text-xs font-medium text-slate-700 dark:text-neutral-300">{milestone.label}</span>
       {milestone.custom && (

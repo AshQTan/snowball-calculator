@@ -121,6 +121,9 @@ export interface Milestone {
   icon?: string;
   custom?: boolean;
   customMilestoneId?: string;
+  color?: string;
+  inverted?: boolean;
+  chevronCount?: number;
 }
 
 export interface CustomMilestone {

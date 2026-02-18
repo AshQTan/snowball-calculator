@@ -235,13 +235,13 @@ export default function ProjectionChartGrid({
     if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
 
     // 1. Collect the global union of all milestones reached across any strategy
-    const globalMilestones = new Map<number, { icon?: string; label: string }>();
+    const globalMilestones = new Map<number, { icon?: string; label: string; chevronCount?: number }>();
     for (const s of strategies) {
       const res = allResults.get(s.id);
       if (!res) continue;
       for (const m of res.milestones) {
         if (!globalMilestones.has(m.amount)) {
-          globalMilestones.set(m.amount, { icon: m.icon, label: m.label });
+          globalMilestones.set(m.amount, { icon: m.icon, label: m.label, chevronCount: m.chevronCount });
         }
       }
     }
@@ -249,7 +249,16 @@ export default function ProjectionChartGrid({
     // 2. Sort by amount and assign a global chevron index
     const sortedAmounts = [...globalMilestones.keys()].sort((a, b) => a - b);
     const chevronByAmount = new Map<number, number>();
-    sortedAmounts.forEach((amount, i) => chevronByAmount.set(amount, i + 1));
+    let standardCounter = 0;
+    sortedAmounts.forEach((amount) => {
+      const m = globalMilestones.get(amount);
+      if (m?.chevronCount) {
+        chevronByAmount.set(amount, m.chevronCount);
+      } else if (!m?.icon) {
+        standardCounter++;
+        chevronByAmount.set(amount, standardCounter);
+      }
+    });
 
     // 3. Build per-strategy milestone data using global chevron counts
     const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
@@ -261,7 +270,16 @@ export default function ProjectionChartGrid({
       const entries = res.milestones
         .map((m) => {
           const row = res.schedule.find((r) => r.year === m.year);
-          const balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
+          // Y-value depends on view mode (if we had viewMode prop here, but grid is mostly assets view?)
+          // actually grid DOES receive viewMode.
+          let balance = 0;
+          if (viewMode === 'networth') {
+            const nominalNW = row?.netWorth ?? 0;
+            const inflationFactor = showReal ? Math.pow(1 + inflationRate / 100, row?.year || 0) : 1;
+            balance = showReal ? nominalNW / inflationFactor : nominalNW;
+          } else {
+            balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
+          }
           const xLabel = timelineMode === 'retirement' && row?.age ? `${row.age}` : `${m.year}`;
           return { amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label };
         })

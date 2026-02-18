@@ -276,9 +276,7 @@ export default function App() {
               result={result}
               showReal={state.global.showReal}
               strategies={state.strategies}
-              activeStrategyId={state.activeStrategyId}
               allResults={allResults}
-              onSwitchStrategy={setActiveStrategyId}
             />
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-white dark:bg-neutral-800 rounded-lg border border-slate-200 dark:border-neutral-700 p-0.5">
@@ -414,11 +412,11 @@ export default function App() {
                 if (msList.length === 0) return null;
                 return (
                   <div className="flex flex-wrap gap-2">
-                    {msList.map((m, i) => (
+                    {msList.map((m) => (
                       <MilestoneBadge
                         key={m.amount}
                         milestone={m}
-                        chevronCount={i + 1}
+                        chevronCount={m.chevronCount || (msList.filter(x => !x.chevronCount && !x.icon && x.amount < m.amount).length + 1)}
                         onClick={m.customMilestoneId ? () => startEditingMilestone(m.customMilestoneId!) : undefined}
                       />
                     ))}
@@ -446,11 +444,11 @@ export default function App() {
               if (sorted.length === 0) return null;
               return (
                 <div className="flex flex-wrap gap-2">
-                  {sorted.map((entry, i) => (
+                  {sorted.map((entry) => (
                     <MilestoneBadge
                       key={entry.milestone.amount}
                       milestone={entry.milestone}
-                      chevronCount={i + 1}
+                      chevronCount={entry.milestone.chevronCount || (sorted.filter(x => !x.milestone.chevronCount && !x.milestone.icon && x.milestone.amount < entry.milestone.amount).length + 1)}
                       strategyHits={entry.hits}
                       onClick={entry.milestone.customMilestoneId ? () => startEditingMilestone(entry.milestone.customMilestoneId!) : undefined}
                     />
