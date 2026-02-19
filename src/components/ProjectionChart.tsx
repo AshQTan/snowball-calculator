@@ -36,41 +36,58 @@ interface ProjectionChartProps {
 }
 
 // Custom ReferenceDot label that renders stacked SVG chevrons or an emoji icon
-function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string; inverted?: boolean }) {
-  const { viewBox, chevronCount = 1, icon, color = '#7dd3fc', inverted = false } = props;
-  if (!viewBox) return null;
+function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; milestones?: any[] }) {
+  const { viewBox, milestones } = props;
+  if (!viewBox || !milestones || milestones.length === 0) return null;
   const cx = viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x;
   const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
-  if (icon) {
-    return (
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="14" dominantBaseline="auto" fill={color}>
-        {icon}
-      </text>
-    );
-  }
-  const clamped = Math.min(chevronCount, 7);
-  const spacing = 6;
+
+  let currentBottomY = cy - 14;
+  const gap = 8;
 
   return (
     <g>
-      {Array.from({ length: clamped }).map((_, i) => {
-        const offset = (clamped - 1 - i) * spacing;
-        const currentY = (cy - 14) - offset;
+      {milestones.map((m, mIdx) => {
+        const color = m.color || '#7dd3fc';
+        if (m.icon) {
+          const y = currentBottomY;
+          currentBottomY -= (14 + gap);
+          return (
+            <text key={mIdx} x={cx} y={y} textAnchor="middle" fontSize="14" dominantBaseline="auto" fill={color}>
+              {m.icon}
+            </text>
+          );
+        }
 
-        return (
-          <polyline
-            key={i}
-            points={inverted
-              ? `${cx - 5},${currentY} ${cx},${currentY + 4} ${cx + 5},${currentY}` // Pointing down v
-              : `${cx - 5},${currentY + 4} ${cx},${currentY} ${cx + 5},${currentY + 4}` // Pointing up ^
-            }
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
+        const clamped = Math.min(m.chevronCount || 1, 7);
+        const spacing = 6;
+        // Height from bottom chevron to top chevron
+        const stackHeight = (clamped - 1) * spacing + 4;
+
+        const element = (
+          <g key={mIdx}>
+            {Array.from({ length: clamped }).map((_, i) => {
+              const offset = (clamped - 1 - i) * spacing;
+              const yPos = currentBottomY - offset;
+              return (
+                <polyline
+                  key={i}
+                  points={m.inverted
+                    ? `${cx - 5},${yPos} ${cx},${yPos + 4} ${cx + 5},${yPos}`
+                    : `${cx - 5},${yPos + 4} ${cx},${yPos} ${cx + 5},${yPos + 4}`
+                  }
+                  stroke={color}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              );
+            })}
+          </g>
         );
+        currentBottomY -= (stackHeight + gap);
+        return element;
       })}
     </g>
   );
@@ -199,7 +216,9 @@ export default function ProjectionChart({
     // In multi-fund split/by-fund views, stacked values are nominal,
     // so milestone dots must use nominal balance to align with stack top.
     const useNominal = hasManyFunds && stackView !== 'by-type';
-    return milestones.map((m) => {
+
+    // First, process all milestones to calculate their properties
+    const calculated = milestones.map((m) => {
       const row = schedule.find((s) => s.year === m.year);
 
       // Determine Y value based on view mode and what the milestone represents
@@ -226,7 +245,23 @@ export default function ProjectionChart({
         inverted: m.inverted,
       };
     });
-  }, [milestones, schedule, showReal, timelineMode, hasManyFunds, stackView]);
+
+    // Group by xLabel (Year/Age)
+    const grouped = new Map<string, typeof calculated>();
+    for (const m of calculated) {
+      if (!grouped.has(m.xLabel)) {
+        grouped.set(m.xLabel, []);
+      }
+      grouped.get(m.xLabel)!.push(m);
+    }
+
+    // Convert map to array of groups for rendering
+    return Array.from(grouped.entries()).map(([xLabel, group]) => ({
+      xLabel,
+      balance: group[0].balance, // All milestones in same year share same chart Y position
+      milestones: group
+    }));
+  }, [milestones, schedule, showReal, timelineMode, hasManyFunds, stackView, viewMode, inflationRate]);
 
   // Compute a tick interval that shows ~10-15 labels max
   const tickInterval = useMemo(() => {
@@ -408,17 +443,16 @@ export default function ProjectionChart({
                   <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               )}
-              {milestoneData.map((m) => (
+              {milestoneData.map((group) => (
                 <ReferenceDot
-                  key={m.amount}
-                  x={m.xLabel}
-                  y={m.balance}
+                  key={group.xLabel}
+                  x={group.xLabel}
+                  y={group.balance}
                   r={4}
-                  fill={m.color || '#7dd3fc'}
-                  stroke={m.color || '#7dd3fc'}
-                  strokeWidth={0}
+                  fill={group.milestones[0].color || '#7dd3fc'} // Use color of first milestone for the dot
+                  stroke="none"
                 >
-                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} inverted={m.inverted} />} />
+                  <Label content={<MilestoneLabel milestones={group.milestones} />} />
                 </ReferenceDot>
               ))}
             </AreaChart>
@@ -489,16 +523,16 @@ export default function ProjectionChart({
                   <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                 </>
               )}
-              {milestoneData.map((m) => (
+              {milestoneData.map((group) => (
                 <ReferenceDot
-                  key={m.amount}
-                  x={m.xLabel}
-                  y={m.balance}
+                  key={group.xLabel}
+                  x={group.xLabel}
+                  y={group.balance}
                   r={0}
                   fill="none"
                   stroke="none"
                 >
-                  <Label content={<MilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} inverted={m.inverted} />} />
+                  <Label content={<MilestoneLabel milestones={group.milestones} />} />
                 </ReferenceDot>
               ))}
             </BarChart>

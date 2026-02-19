@@ -489,6 +489,8 @@ export default function App() {
             <CompositionChart
               schedule={result.schedule}
               funds={activeFunds}
+              debts={activeDebts}
+              initialDebt={result.initialDebtBalance}
               darkMode={darkMode}
               timelineMode={state.global.timelineMode}
             />

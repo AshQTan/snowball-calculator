@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ProjectionResult, Milestone, Strategy } from '../types';
 import { formatCurrency, formatCompact, formatPercent, formatYears } from '../utils/formatters';
+import { COLOR_DEBT } from '../utils/colors';
 
 function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
   const [show, setShow] = useState(false);
@@ -214,7 +215,7 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Worth</span>
-            <span className={`text-lg font-semibold tabular-nums ${result.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            <span className={`text-lg font-semibold tabular-nums ${result.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.netWorth < 0 ? { color: COLOR_DEBT } : undefined}>
               {result.netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(result.netWorth))}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">assets − debts</span>
@@ -223,7 +224,7 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
               {result.debtFreeYear !== null ? 'Debt Free' : 'Debt Remaining'}
             </span>
-            <span className={`text-lg font-semibold tabular-nums ${result.debtFreeYear !== null ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            <span className={`text-lg font-semibold tabular-nums ${result.debtFreeYear !== null ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.debtFreeYear === null ? { color: COLOR_DEBT } : undefined}>
               {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : formatCurrency(result.remainingDebt)}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">
@@ -236,7 +237,7 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Change</span>
-            <span className={`text-lg font-semibold tabular-nums ${result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            <span className={`text-lg font-semibold tabular-nums ${result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.netWorth - (totalStartingBalance - result.initialDebtBalance) < 0 ? { color: COLOR_DEBT } : undefined}>
               {result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? '+' : '−'}
               {formatCurrency(Math.abs(result.netWorth - (totalStartingBalance - result.initialDebtBalance)))}
             </span>
@@ -244,7 +245,7 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Debt Paid</span>
-            <span className="text-lg font-semibold text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(result.totalDebtPayments)}</span>
+            <span className="text-lg font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>{formatCurrency(result.totalDebtPayments)}</span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">paid {formatCurrency(result.totalDebtInterestPaid)} in interest</span>
           </div>
         </div>
