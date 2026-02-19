@@ -190,7 +190,7 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
           <div className="stat-card items-center text-center">
             <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
             <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total invested</span>
             {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
           </div>
           <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>

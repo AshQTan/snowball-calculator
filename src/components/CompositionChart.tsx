@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { YearBreakdown, Fund, Strategy, ProjectionResult, Debt } from '../types';
 import { formatPercent, formatCurrency } from '../utils/formatters';
-import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, COLOR_DEBT, fundVariants } from '../utils/colors';
+import { COLOR_STARTING, COLOR_CONTRIBUTIONS, COLOR_INTEREST, COLOR_DEBT } from '../utils/colors';
 import LegendItem from './LegendItem';
 import { ChevronDown } from 'lucide-react';
 
@@ -62,7 +62,7 @@ export default function CompositionChart({
 
     // Per-fund cumulative data up to the selected year
     const fundData = useMemo(() => {
-        if (!hasManyFunds) return [];
+        // Removed early return for !hasManyFunds to allow consistent chart usage in detailed view
         return funds.map((f) => {
             let cumContrib = 0;
             let cumInterest = 0;
@@ -80,33 +80,55 @@ export default function CompositionChart({
                 interestVal: cumInterest,
                 total,
                 pctOfTotal: overall > 0 ? (total / overall) * 100 : 0,
-                pctStart: total > 0 ? (startVal / overall) * 100 : 0,
-                pctContrib: total > 0 ? (cumContrib / overall) * 100 : 0,
-                pctInterest: total > 0 ? (cumInterest / overall) * 100 : 0,
+                pctStart: total > 0 ? (startVal / total) * 100 : 0,
+                pctContrib: total > 0 ? (cumContrib / total) * 100 : 0,
+                pctInterest: total > 0 ? (cumInterest / total) * 100 : 0,
             };
         });
     }, [funds, schedule, clampedYear, hasManyFunds, row]);
 
     const debtData = useMemo(() => {
         if (!hasDebts || !row) return [];
-        const totalDebt = row.debtBalance || 0;
-        if (totalDebt <= 0) return [];
+        // Removed early return for totalDebt <= 0 to allow showing paid off debts in list
 
         return debts.map(d => {
             const balance = row.debtBalances?.[d.id] || 0;
+            const current = balance;
             // Use current principal as initial approximation if not stored, 
             // but ideally we'd want the true initial from the debt object if we had it.
             // Since we don't track historical initial per debt in the schedule easily without looking back,
             // we will use the debt definition's principal as the "initial" for the bar visualization.
             const initial = d.principal;
+            const effectiveInitial = initial > 0 ? initial : current;
+            const basis = Math.max(effectiveInitial, current);
+
             return {
                 debt: d,
                 balance,
-                pctOfTotal: totalDebt > 0 ? (balance / totalDebt) * 100 : 0,
-                initial
+                pctOfTotal: (row.debtBalance || 0) > 0 ? (balance / (row.debtBalance || 1)) * 100 : 0,
+                initial,
+                current,
+                basis,
+                effectiveInitial
             };
-        }).filter(d => d.balance > 0).sort((a, b) => b.balance - a.balance);
+        }).sort((a, b) => b.balance - a.balance);
     }, [debts, row, hasDebts]);
+
+    // Calculate maximum value for bar scaling (max of any single displayed component: Fund or Debt)
+    const maxBarValue = useMemo(() => {
+        if (compView === 'by-fund') {
+            const maxFund = fundData.length > 0 ? Math.max(...fundData.map(f => f.total)) : 0;
+            const maxDebtCurrent = debtData.length > 0 ? Math.max(...debtData.map(d => d.current)) : 0;
+            return Math.max(maxFund, maxDebtCurrent, 1);
+        }
+        // In combined view, we compare Total Assets vs Total Liabilities (roughly)
+        // But actually combined view logic for bars is 100% width, so this value is less critical
+        // unless used for something else.
+        // Let's fallback to Total Assets just in case.
+        return Math.max(data.total, 1);
+    }, [data.total, debtData, fundData, compView]);
+
+
 
     const yearLabel = timelineMode === 'retirement' && row?.age
         ? `Age ${row.age}`
@@ -155,18 +177,24 @@ export default function CompositionChart({
                         {formatCurrency(data.total)}
                     </span>
                 </div>
-                {compView === 'by-fund' && hasManyFunds ? (
+                {compView === 'by-fund' ? (
                     <div className="space-y-1.5">
-                        {fundData.map(({ fund, pctStart, pctContrib, pctInterest, pctOfTotal, startVal, contribVal, interestVal }) => {
-                            const v = fundVariants(fund.color, darkMode);
+                        {fundData.map(({ fund, pctStart, pctContrib, pctInterest, pctOfTotal, startVal, contribVal, interestVal, total }) => {
                             return (
-                                <div key={fund.id} className="space-y-0.5">
-                                    <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{fund.name}</div>
+                                <div key={fund.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${fund.color}25` }}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{fund.name}</div>
+                                        <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">
+                                            {formatCurrency(total)}
+                                        </div>
+                                    </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-7 flex">
-                                            <BarSegment pct={pctStart} color={v.starting} label="Starting" value={startVal} size="sm" roundedClass="rounded-l-md" />
-                                            <BarSegment pct={pctContrib} color={v.contributions} label="Contributions" value={contribVal} size="sm" />
-                                            <BarSegment pct={pctInterest} color={v.interest} label="Interest" value={interestVal} size="sm" textClass="text-white/90" roundedClass="rounded-r-md" />
+                                        <div className="flex-1">
+                                            <div className="h-7 flex" style={{ width: `${(total / maxBarValue) * 100}%` }}>
+                                                <BarSegment pct={pctStart} color={COLOR_STARTING} label="Starting" value={startVal} size="sm" roundedClass="rounded-l-md" />
+                                                <BarSegment pct={pctContrib} color={COLOR_CONTRIBUTIONS} label="Contributions" value={contribVal} size="sm" />
+                                                <BarSegment pct={pctInterest} color={COLOR_INTEREST} label="Interest" value={interestVal} size="sm" textClass="text-white/90" roundedClass="rounded-r-md" />
+                                            </div>
                                         </div>
                                         <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right">{Math.round(pctOfTotal)}%</span>
                                     </div>
@@ -183,32 +211,7 @@ export default function CompositionChart({
                 )}
 
                 {/* Detail breakdown */}
-                {compView === 'by-fund' && hasManyFunds ? (
-                    <div className="space-y-2">
-                        {fundData.map(({ fund, startVal, contribVal, interestVal, total, pctOfTotal }) => {
-                            const v = fundVariants(fund.color, darkMode);
-                            return (
-                                <div key={fund.id} className="bg-slate-50 dark:bg-neutral-800/40 rounded-lg p-3">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: fund.color }} />
-                                            <span className="text-xs font-medium text-slate-600 dark:text-neutral-300">{fund.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 tabular-nums">{formatCurrency(total)}</span>
-                                            <span className="text-[10px] text-slate-400 dark:text-neutral-500 tabular-nums w-[32px] text-right">{Math.round(pctOfTotal)}%</span>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <MiniDetail color={v.starting} label="Starting" value={startVal} />
-                                        <MiniDetail color={v.contributions} label="Contributions" value={contribVal} />
-                                        <MiniDetail color={v.interest} label="Interest" value={interestVal} />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
+                {compView !== 'by-fund' && (
                     <div className="grid grid-cols-3 gap-3">
                         <DetailCard color={COLOR_STARTING} label="Starting Balance" pct={data.pctStart} value={data.startVal} />
                         <DetailCard color={COLOR_CONTRIBUTIONS} label="Contributions" pct={data.pctContrib} value={data.contribVal} />
@@ -224,36 +227,25 @@ export default function CompositionChart({
                             <h3 className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
                                 Liabilities
                             </h3>
-                            {data.debtTotal > 0 && (
-                                <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>
-                                    {formatCurrency(data.debtTotal)}
-                                </span>
-                            )}
+                            <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>
+                                {formatCurrency(data.debtTotal)}
+                            </span>
                         </div>
 
                         {compView === 'by-fund' && debtData.length > 0 ? (
                             <div className="space-y-2">
-                                {debtData.map(({ debt, balance, pctOfTotal, initial }) => {
-                                    const current = balance;
-                                    // If we don't have a valid initial (e.g. 0), fallback to current so we don't divide by zero
-                                    // effectively treating it as 100% remaining.
-                                    const effectiveInitial = initial > 0 ? initial : current;
+                                {debtData.map(({ debt, balance, pctOfTotal, current, effectiveInitial }) => {
+                                    // Calculate bar width based on current balance relative to max bar value
+                                    const barWidthPct = (current / maxBarValue) * 100;
 
-                                    const basis = Math.max(effectiveInitial, current);
-
-                                    const paidVal = Math.max(0, effectiveInitial - current);
                                     const remainingVal = Math.min(current, effectiveInitial);
                                     const excessVal = Math.max(0, current - effectiveInitial);
 
-                                    const pctPaid = basis > 0 ? (paidVal / basis) * 100 : 0;
-                                    const pctRemaining = basis > 0 ? (remainingVal / basis) * 100 : 0;
-                                    const pctExcess = basis > 0 ? (excessVal / basis) * 100 : 0;
-
-                                    // Use a lighter green for paid segment
-                                    const colorPaid = darkMode ? '#34d399' : '#bbf7d0'; // mint green / green-200(light)
+                                    const pctRemaining = current > 0 ? (remainingVal / current) * 100 : 0;
+                                    const pctExcess = current > 0 ? (excessVal / current) * 100 : 0;
 
                                     return (
-                                        <div key={debt.id} className="space-y-1">
+                                        <div key={debt.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${debt.color}25` }}>
                                             <div className="flex items-center justify-between">
                                                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{debt.name}</div>
                                                 <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">
@@ -261,18 +253,11 @@ export default function CompositionChart({
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex-1 h-5 flex rounded-md bg-slate-100 dark:bg-neutral-800">
-                                                    {current === 0 ? (
-                                                        <div className="w-full h-full bg-green-100 dark:bg-green-900/30 rounded-md flex items-center justify-center text-[10px] text-green-600 dark:text-green-400 font-medium">
-                                                            Paid Off
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <BarSegment pct={pctRemaining} color={COLOR_DEBT} label="Principal Remaining" value={remainingVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
-                                                            <BarSegment pct={pctExcess} color={COLOR_INTEREST} label="Interest Accumulating" value={excessVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
-                                                            <BarSegment pct={pctPaid} color={colorPaid} label="Paid Off" value={paidVal} size="sm" textClass="text-green-800 dark:text-green-100" roundedClass="first:rounded-l-md last:rounded-r-md" />
-                                                        </>
-                                                    )}
+                                                <div className="flex-1">
+                                                    <div className="h-5 flex rounded-md bg-slate-100 dark:bg-neutral-800" style={{ width: `${barWidthPct}%` }}>
+                                                        <BarSegment pct={pctRemaining} color={COLOR_DEBT} label="Principal Remaining" value={remainingVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
+                                                        <BarSegment pct={pctExcess} color={COLOR_INTEREST} label="Interest Accumulating" value={excessVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
+                                                    </div>
                                                 </div>
                                                 <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right">{Math.round(pctOfTotal)}%</span>
                                             </div>
@@ -282,7 +267,7 @@ export default function CompositionChart({
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {data.debtTotal > 0 ? (
+                                {data.debtTotal > 0 || initialDebt > 0 ? (
                                     <>
                                         {(() => {
                                             const current = data.debtTotal;
@@ -321,11 +306,8 @@ export default function CompositionChart({
                                             );
                                         })()}
                                     </>
-                                ) : (
-                                    <div className="w-full h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 text-sm font-medium border border-green-200 dark:border-green-800/30">
-                                        Debt Free!
-                                    </div>
-                                )}
+                                ) : null}
+
                             </div>
                         )}
                     </div>
@@ -355,34 +337,11 @@ export default function CompositionChart({
             {/* Legend */}
             <div className="flex flex-wrap items-center justify-between gap-y-2 mt-3 px-2">
                 <div className="flex flex-wrap items-center gap-4">
-                    {compView === 'by-fund' && hasManyFunds ? (
-                        <>
-                            {funds.map((f) => {
-                                const v = fundVariants(f.color, darkMode);
-                                return (
-                                    <div key={f.id} className="flex items-center gap-1.5">
-                                        <div className="flex">
-                                            <div className="w-2.5 h-2.5 rounded-l-sm" style={{ backgroundColor: v.starting }} />
-                                            <div className="w-2.5 h-2.5" style={{ backgroundColor: v.contributions }} />
-                                            <div className="w-2.5 h-2.5 rounded-r-sm" style={{ backgroundColor: v.interest }} />
-                                        </div>
-                                        <span className="text-xs text-slate-400 dark:text-neutral-500">{f.name}</span>
-                                    </div>
-                                );
-                            })}
-                            <span className="text-[10px] text-slate-400/70 dark:text-neutral-600">
-                                dark = starting · mid = contributions · light = interest
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <LegendItem color={COLOR_STARTING} label="Starting Balance" />
-                            <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
-                            <LegendItem color={COLOR_INTEREST} label="Interest" />
-                        </>
-                    )}
+                    <LegendItem color={COLOR_STARTING} label="Starting Balance" />
+                    <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
+                    <LegendItem color={COLOR_INTEREST} label="Interest" />
 
-                    {data.debtTotal > 0 && compView !== 'by-fund' && (
+                    {(data.debtTotal > 0 || initialDebt > 0) && (
                         <LegendItem color={COLOR_DEBT} label="Debt" />
                     )}
                 </div>
@@ -525,17 +484,7 @@ function DetailCard({ color, label, pct, value }: { color: string; label: string
 }
 
 
-function MiniDetail({ color, label, value }: { color: string; label: string; value: number }) {
-    return (
-        <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
-            <div className="min-w-0">
-                <div className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider truncate">{label}</div>
-                <div className="text-[11px] text-slate-600 dark:text-neutral-400 tabular-nums">{formatCurrency(value)}</div>
-            </div>
-        </div>
-    );
-}
+
 
 function BarSegment({
     pct,
