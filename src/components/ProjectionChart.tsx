@@ -59,7 +59,8 @@ function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: numbe
           );
         }
 
-        const clamped = Math.min(m.chevronCount || 1, 7);
+        const maxChevrons = 5;
+        const clamped = Math.min(m.chevronCount || 1, maxChevrons);
         const spacing = 6;
         // Height from bottom chevron to top chevron
         const stackHeight = (clamped - 1) * spacing + 4;
@@ -137,14 +138,27 @@ export default function ProjectionChart({
           : `${row.year}`;
 
       const inflationFactor = showReal ? Math.pow(1 + inflationRate / 100, row.year) : 1;
-      const contributions = showReal ? row.cumulativeContributions / inflationFactor : row.cumulativeContributions;
-      const interest = showReal ? row.realEndBalance - row.cumulativeStartingBalance - contributions : row.cumulativeInterest;
+
+      const startingBal = row.cumulativeStartingBalance / inflationFactor;
+      const contributions = showReal ? row.realCumulativeContributions : row.cumulativeContributions;
+      const interest = showReal ? (balance - startingBal - contributions) : row.cumulativeInterest;
 
       // Calculate real vs nominal Debt & Net Worth
       const nominalDebt = row.debtBalance || 0;
       const nominalNw = row.netWorth ?? balance;
-      const adjustedDebt = showReal ? nominalDebt / inflationFactor : nominalDebt;
-      const adjustedNw = showReal ? nominalNw / inflationFactor : nominalNw;
+      const adjustedDebt = nominalDebt / inflationFactor;
+      const adjustedNw = nominalNw / inflationFactor;
+
+      // Shared function for proportional NW breakdown
+      const getProportionalNW = () => {
+        const nw = adjustedNw;
+        const totalAssets = balance;
+        if (nw >= 0 && totalAssets > 0) {
+          const ratio = nw / totalAssets;
+          return { nw_starting: startingBal * ratio, nw_contributions: contributions * ratio, nw_interest: interest * ratio, nw_debt: 0 };
+        }
+        return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
+      };
 
       if (hasManyFunds) {
         // Accumulate per-fund contributions and interest
@@ -154,34 +168,27 @@ export default function ProjectionChart({
         }
         const fundData: Record<string, number> = {};
         for (const f of funds) {
-          fundData[`fund_${f.id}`] = row.fundBalances[f.id] || 0;
-          fundData[`fund_${f.id}_starting`] = f.startingBalance;
-          fundData[`fund_${f.id}_contrib`] = cumFundContrib[f.id] || 0;
-          fundData[`fund_${f.id}_interest`] = cumFundInterest[f.id] || 0;
+          const fundStarting = f.startingBalance / inflationFactor;
+          const fundContrib = showReal ? (row.realFundContributions[f.id] || 0) : (cumFundContrib[f.id] || 0);
+          const fundBal = (row.fundBalances[f.id] || 0) / inflationFactor;
+          const fundInterest = showReal ? (fundBal - fundStarting - fundContrib) : (cumFundInterest[f.id] || 0);
+
+          fundData[`fund_${f.id}`] = fundBal;
+          fundData[`fund_${f.id}_starting`] = fundStarting;
+          fundData[`fund_${f.id}_contrib`] = fundContrib;
+          fundData[`fund_${f.id}_interest`] = fundInterest;
         }
         return {
           label,
           year: row.year,
           balance,
-          startingBal: row.cumulativeStartingBalance,
+          startingBal,
           contributions,
           interest,
           ...fundData,
           debtBalance: -adjustedDebt,
           netWorth: adjustedNw,
-          // Proportional NW breakdown for coloring
-          ...(() => {
-            const nw = adjustedNw;
-            const totalAssets = balance;
-            if (nw >= 0 && totalAssets > 0) {
-              const s = row.cumulativeStartingBalance;
-              const c = contributions;
-              const i = interest;
-              const ratio = nw / totalAssets;
-              return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
-            }
-            return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
-          })(),
+          ...getProportionalNW(),
         };
       } else {
         // single fund: stacked by starting balance / contributions / interest
@@ -189,34 +196,18 @@ export default function ProjectionChart({
           label,
           year: row.year,
           balance,
-          startingBal: row.cumulativeStartingBalance,
+          startingBal,
           contributions,
           interest,
           debtBalance: -adjustedDebt,
           netWorth: adjustedNw,
-          // Proportional NW breakdown for coloring
-          ...(() => {
-            const nw = adjustedNw;
-            const totalAssets = balance;
-            if (nw >= 0 && totalAssets > 0) {
-              const s = row.cumulativeStartingBalance;
-              const c = contributions;
-              const i = interest;
-              const ratio = nw / totalAssets;
-              return { nw_starting: s * ratio, nw_contributions: c * ratio, nw_interest: i * ratio, nw_debt: 0 };
-            }
-            return { nw_starting: 0, nw_contributions: 0, nw_interest: 0, nw_debt: nw < 0 ? nw : 0 };
-          })(),
+          ...getProportionalNW(),
         };
       }
     });
   }, [schedule, funds, showReal, inflationRate, timelineMode, hasManyFunds]);
 
   const milestoneData = useMemo(() => {
-    // In multi-fund split/by-fund views, stacked values are nominal,
-    // so milestone dots must use nominal balance to align with stack top.
-    const useNominal = hasManyFunds && stackView !== 'by-type';
-
     // First, process all milestones to calculate their properties
     const calculated = milestones.map((m) => {
       const row = schedule.find((s) => s.year === m.year);
@@ -227,8 +218,7 @@ export default function ProjectionChart({
         const nominalNW = row?.netWorth ?? 0;
         balance = showReal ? (nominalNW / (row ? Math.pow(1 + inflationRate / 100, row.year) : 1)) : nominalNW;
       } else {
-        const nominalBal = row?.endBalance ?? 0;
-        balance = (showReal && !useNominal) ? (row?.realEndBalance || 0) : nominalBal;
+        balance = showReal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
       }
       // Must match chartData label format exactly
       const xLabel =
@@ -261,7 +251,7 @@ export default function ProjectionChart({
       balance: group[0].balance, // All milestones in same year share same chart Y position
       milestones: group
     }));
-  }, [milestones, schedule, showReal, timelineMode, hasManyFunds, stackView, viewMode, inflationRate]);
+  }, [milestones, schedule, showReal, timelineMode, viewMode, inflationRate]);
 
   // Compute a tick interval that shows ~10-15 labels max
   const tickInterval = useMemo(() => {
@@ -627,12 +617,12 @@ interface ChartTooltipProps {
   viewMode?: ChartViewMode;
 }
 
-function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView }: ChartTooltipProps) {
+function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, darkMode, barView, viewMode }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
   const balance = data?.balance ?? 0;
   const pct = (v: number) => balance > 0 ? `${Math.round(v / balance * 100)}%` : '—';
-  const hasDebtData = (data?.debtBalance ?? 0) !== 0;
+  const showNetWorthData = viewMode === 'networth' || (data?.debtBalance ?? 0) !== 0;
 
   return (
     <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 rounded-lg p-3 shadow-xl min-w-[180px]">
@@ -728,7 +718,7 @@ function ChartTooltip({ active, payload, label, funds, showReal, timelineMode, d
         ) : (
           <TooltipByType data={data} pct={pct} />
         )}
-        {hasDebtData && (
+        {showNetWorthData && (
           <>
             <div className="border-t border-slate-100 dark:border-neutral-800 my-1 pt-1" />
             <div className="flex justify-between gap-4">

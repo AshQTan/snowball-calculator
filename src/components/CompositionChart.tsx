@@ -40,8 +40,7 @@ export default function CompositionChart({
     const [compView, setCompView] = useState<CompView>('combined');
     const hasManyFunds = funds.length > 1;
     const hasDebts = debts.length > 0;
-    const hasMultipleDebts = debts.length > 1;
-    const showDetailedView = hasManyFunds || hasMultipleDebts;
+    const showDetailedView = hasManyFunds || hasDebts;
 
     const clampedYear = Math.min(Math.max(selectedYear, 1), schedule.length);
     const row = schedule[clampedYear - 1];
@@ -116,17 +115,11 @@ export default function CompositionChart({
 
     // Calculate maximum value for bar scaling (max of any single displayed component: Fund or Debt)
     const maxBarValue = useMemo(() => {
-        if (compView === 'by-fund') {
-            const maxFund = fundData.length > 0 ? Math.max(...fundData.map(f => f.total)) : 0;
-            const maxDebtCurrent = debtData.length > 0 ? Math.max(...debtData.map(d => d.current)) : 0;
-            return Math.max(maxFund, maxDebtCurrent, 1);
-        }
-        // In combined view, we compare Total Assets vs Total Liabilities (roughly)
-        // But actually combined view logic for bars is 100% width, so this value is less critical
-        // unless used for something else.
-        // Let's fallback to Total Assets just in case.
-        return Math.max(data.total, 1);
-    }, [data.total, debtData, fundData, compView]);
+        if (compView !== 'by-fund') return 1;
+        const maxFund = fundData.length > 0 ? Math.max(...fundData.map(f => f.total)) : 0;
+        const maxDebtCurrent = debtData.length > 0 ? Math.max(...debtData.map(d => d.current)) : 0;
+        return Math.max(maxFund, maxDebtCurrent, 1);
+    }, [fundData, debtData, compView]);
 
 
 
@@ -290,17 +283,17 @@ export default function CompositionChart({
                                                     <div className="w-full h-8 flex rounded-lg bg-slate-100 dark:bg-neutral-800">
                                                         <BarSegment pct={pctRemaining} color={COLOR_DEBT} label="Principal Remaining" value={remainingVal} size="lg" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
                                                         <BarSegment pct={pctExcess} color={COLOR_INTEREST} label="Interest Accumulating" value={excessVal} size="lg" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
-                                                        <BarSegment pct={pctPaid} color={colorPaid} label="Paid Off" value={paidVal} size="lg" textClass="text-green-800 dark:text-green-100" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
+                                                        <BarSegment pct={pctPaid} color={colorPaid} label="Paid" value={paidVal} size="lg" textClass="text-green-800 dark:text-green-100" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
                                                     </div>
 
-                                                    <div className="grid grid-cols-3 gap-3 mt-3">
+                                                    <div className={`grid ${excessVal > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-3 mt-3`}>
                                                         <DetailCard color={COLOR_DEBT} label="Principal" pct={pctRemaining} value={remainingVal} />
                                                         {excessVal > 0 ? (
                                                             <DetailCard color={COLOR_INTEREST} label="Interest" pct={pctExcess} value={excessVal} />
                                                         ) : (
-                                                            <DetailCard color={colorPaid} label="Paid Off" pct={pctPaid} value={paidVal} />
+                                                            <DetailCard color={colorPaid} label="Paid" pct={pctPaid} value={paidVal} />
                                                         )}
-                                                        {excessVal > 0 && <DetailCard color={colorPaid} label="Paid Off" pct={pctPaid} value={paidVal} />}
+                                                        {excessVal > 0 && <DetailCard color={colorPaid} label="Paid" pct={pctPaid} value={paidVal} />}
                                                     </div>
                                                 </>
                                             );

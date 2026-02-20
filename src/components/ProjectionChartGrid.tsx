@@ -77,7 +77,7 @@ function GridMilestoneLabel(props: { viewBox?: { x: number; y: number; width?: n
   const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
   if (icon) {
     return (
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto">
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto" fill={color}>
         {icon}
       </text>
     );
@@ -232,7 +232,7 @@ export default function ProjectionChartGrid({
 
   // Milestone data per strategy — chevronCounts are globally consistent
   const allMilestoneData = useMemo(() => {
-    if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
+    if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string; color?: string }[]>();
 
     // 1. Collect the global union of all milestones reached across any strategy
     const globalMilestones = new Map<number, { icon?: string; label: string; chevronCount?: number }>();
@@ -261,7 +261,7 @@ export default function ProjectionChartGrid({
     });
 
     // 3. Build per-strategy milestone data using global chevron counts
-    const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string }[]>();
+    const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string; color?: string }[]>();
     for (const s of strategies) {
       const res = allResults.get(s.id);
       if (!res) continue;
@@ -281,7 +281,7 @@ export default function ProjectionChartGrid({
             balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
           }
           const xLabel = timelineMode === 'retirement' && row?.age ? `${row.age}` : `${m.year}`;
-          return { amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label };
+          return { amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label, color: m.color };
         })
         .sort((a, b) => a.amount - b.amount);
       map.set(s.id, entries);
@@ -662,7 +662,7 @@ export default function ProjectionChartGrid({
                           stroke={strategy.color}
                           strokeWidth={0}
                         >
-                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={strategy.color} />} />
+                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color || strategy.color} />} />
                         </ReferenceDot>
                       ))}
                     </AreaChart>
@@ -751,7 +751,7 @@ export default function ProjectionChartGrid({
                           fill="none"
                           stroke="none"
                         >
-                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={strategy.color} />} />
+                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color || strategy.color} />} />
                         </ReferenceDot>
                       ))}
                     </BarChart>

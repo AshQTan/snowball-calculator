@@ -87,6 +87,12 @@ export interface YearBreakdown {
   debtInterestPaid: Record<string, number>;
   cumulativeDebtPayments: number;
   cumulativeDebtInterest: number;
+  // Real tracking fields
+  realCumulativeContributions: number;
+  realCumulativeInterest: number;
+  realFundContributions: Record<string, number>;
+  realCumulativeDebtPayments: number;
+  realCumulativeDebtInterest: number;
 }
 
 export interface ProjectionResult {
@@ -112,6 +118,13 @@ export interface ProjectionResult {
   debtFreeYear: number | null;
   netWorth: number;
   positiveNetWorthYear: number | null;
+  // Real totals
+  totalRealContributed: number;
+  totalRealInterest: number;
+  totalRealDebtPayments: number;
+  totalRealDebtInterestPaid: number;
+  realRemainingDebt: number;
+  realNetWorth: number;
 }
 
 export interface Milestone {

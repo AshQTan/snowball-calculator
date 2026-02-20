@@ -24,7 +24,7 @@ function OverlayMilestoneLabel(props: { viewBox?: { x: number; y: number; width?
   const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
   if (icon) {
     return (
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto">
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto" fill={color}>
         {icon}
       </text>
     );
@@ -143,7 +143,7 @@ export default function ProjectionChartComparison({
     const chevronByAmount = new Map<number, number>();
     sortedAmounts.forEach((amount, i) => chevronByAmount.set(amount, i + 1));
 
-    const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; strategyIndex: number; totalStrategies: number }[] = [];
+    const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; milestoneColor?: string; strategyIndex: number; totalStrategies: number }[] = [];
     for (let si = 0; si < strategies.length; si++) {
       const s = strategies[si];
       const res = allResults.get(s.id);
@@ -160,6 +160,7 @@ export default function ProjectionChartComparison({
           value,
           chevronCount: chevronByAmount.get(m.amount) ?? 1,
           icon: m.icon,
+          milestoneColor: m.color,
           strategyIndex: si,
           totalStrategies: strategies.length,
         });
@@ -265,7 +266,7 @@ export default function ProjectionChartComparison({
                   stroke={m.color}
                   strokeWidth={0}
                 >
-                  <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} />} />
+                  <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.milestoneColor || m.color} />} />
                 </ReferenceDot>
               ))}
             </LineChart>
@@ -316,7 +317,7 @@ export default function ProjectionChartComparison({
                     fill="none"
                     stroke="none"
                   >
-                    <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color} dx={dx} />} />
+                    <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.milestoneColor || m.color} dx={dx} />} />
                   </ReferenceDot>
                 );
               })}

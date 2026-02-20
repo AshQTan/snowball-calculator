@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { YearBreakdown, Fund, Milestone, Strategy, ProjectionResult } from '../types';
@@ -25,6 +25,14 @@ function HeaderTooltip({ text, children }: { text: ReactNode; children: ReactNod
       setShow(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (show) {
+      const handleScroll = () => setShow(false);
+      window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+      return () => window.removeEventListener('scroll', handleScroll, { capture: true });
+    }
+  }, [show]);
 
   return (
     <>
@@ -62,20 +70,47 @@ const TABLE_VIEW_LABELS: Record<TableViewMode, string> = {
   split: 'Fund × Type',
 };
 
-function MilestoneTag({ milestone }: { milestone: Milestone }) {
-  if (milestone.custom && milestone.icon) {
-    return (
-      <span className="relative inline-flex group/ms">
-        <span className="text-sm leading-none cursor-default">{milestone.icon}</span>
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-md px-2 py-1 text-[10px] text-slate-600 dark:text-neutral-300 shadow-lg opacity-0 invisible group-hover/ms:opacity-100 group-hover/ms:visible transition-all z-30 pointer-events-none">
-          <span className="font-medium">{milestone.label}</span>
-          <span className="text-slate-400 dark:text-neutral-500 ml-1">{formatCompact(milestone.amount)}</span>
-        </span>
-      </span>
-    );
-  }
+function ChevronStack({ count, color = '#7dd3fc', inverted = false }: { count: number; color?: string; inverted?: boolean }) {
+  const clamped = Math.min(count, 7);
+  const h = 6 + clamped * 5;
   return (
-    <span className="text-[10px] text-sky-600/70 dark:text-sky-400/70">{milestone.label}</span>
+    <svg width="14" height={h} viewBox={`0 0 14 ${h}`} fill="none" className="flex-shrink-0">
+      {Array.from({ length: clamped }).map((_, i) => {
+        const y = h - i * 5 - 7;
+        return (
+          <polyline
+            key={i}
+            points={inverted
+              ? `2,${y} 7,${y + 5} 12,${y}` // Pointing down
+              : `2,${y + 5} 7,${y} 12,${y + 5}` // Pointing up
+            }
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function MilestoneTag({ milestone }: { milestone: Milestone }) {
+  return (
+    <span className="relative inline-flex group/ms cursor-default bg-slate-100 dark:bg-neutral-800/60 p-1.5 rounded border border-slate-200 dark:border-neutral-700/50 hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors">
+      {milestone.icon ? (
+        <span className="text-sm leading-none" style={{ color: milestone.color }}>{milestone.icon}</span>
+      ) : (
+        <ChevronStack count={milestone.chevronCount || 1} color={milestone.color} inverted={milestone.inverted} />
+      )}
+      <span className="absolute bottom-1/2 left-full -translate-y-1/2 ml-2 whitespace-nowrap bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-md px-2 py-1 text-[10px] text-slate-600 dark:text-neutral-300 shadow-lg opacity-0 invisible group-hover/ms:opacity-100 group-hover/ms:visible transition-all z-30 pointer-events-none">
+        <span className="font-medium">{milestone.label}</span>
+        {milestone.amount > 0 && (
+          <span className="text-slate-400 dark:text-neutral-500 ml-1">{formatCompact(milestone.amount)}</span>
+        )}
+      </span>
+    </span>
   );
 }
 
@@ -115,16 +150,16 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
 
   // Precompute cumulative per-fund contributions for "vs invested" growth mode
   const cumulativeFundContribs = useMemo(() => {
-    const result: Record<string, number>[] = [];
+    const map = new Map<number, Record<string, number>>();
     const running: Record<string, number> = {};
     for (const fund of funds) running[fund.id] = 0;
     for (const row of schedule) {
       for (const fund of funds) {
         running[fund.id] = (running[fund.id] || 0) + (row.fundContributions[fund.id] || 0);
       }
-      result.push({ ...running });
+      map.set(row.year, { ...running });
     }
-    return result;
+    return map;
   }, [schedule, funds]);
 
   const getGrowthPct = (row: YearBreakdown) => {
@@ -132,7 +167,7 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
     if (growthMode === 'starting') {
       return initialBalance > 0 ? (endBal / initialBalance - 1) * 100 : null;
     }
-    const invested = row.cumulativeStartingBalance + row.cumulativeContributions;
+    const invested = showReal ? (row.cumulativeStartingBalance + row.realCumulativeContributions) : (row.cumulativeStartingBalance + row.cumulativeContributions);
     return invested > 0 ? (endBal / invested - 1) * 100 : null;
   };
 
@@ -143,7 +178,7 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
     if (growthMode === 'starting') {
       return fund.startingBalance > 0 ? (bal / fund.startingBalance - 1) * 100 : null;
     }
-    const cumContrib = cumulativeFundContribs[row.year]?.[fund.id] || 0;
+    const cumContrib = showReal ? (row.realFundContributions[fund.id] || 0) : (cumulativeFundContribs.get(row.year)?.[fund.id] || 0);
     const invested = fund.startingBalance + cumContrib;
     return invested > 0 ? (bal / invested - 1) * 100 : null;
   };
@@ -273,7 +308,11 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                         <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                           {timelineMode === 'retirement' && row.age ? row.age : row.year}
                         </span>
-                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                        {isMilestone && (
+                          <div className="flex flex-col items-end gap-1">
+                            {milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="py-2 px-3 text-right text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${COLOR_STARTING}${TINT}` }}>{formatCurrency(row.startBalance)}</td>
@@ -311,9 +350,16 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                         <td />
                         <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
                         <td className="py-1.5 px-3 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                        <td className="py-1.5 pl-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                        <td className="py-1.5 px-3 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums">{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
                         {showReal && <td />}
                         <td className="pr-5" />
+                        {hasDebts && (
+                          <>
+                            <td />
+                            <td />
+                            <td />
+                          </>
+                        )}
                       </tr>
                     );
                   }
@@ -366,7 +412,11 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                         <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                           {timelineMode === 'retirement' && row.age ? row.age : row.year}
                         </span>
-                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                        {isMilestone && (
+                          <div className="flex flex-col items-end gap-1">
+                            {milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     {funds.map((fund) => (
@@ -418,9 +468,9 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                   const v = fundVariants(fund.color, darkMode);
                   return (
                     <Fragment key={fund.id}>
-                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.starting}${TINT}` }}>Contrib</th>
-                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.contributions}${TINT}` }}>Interest</th>
-                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.interest}${TINT}` }}>Balance</th>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.contributions}${TINT}` }}>Contrib</th>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${v.interest}${TINT}` }}>Interest</th>
+                      <th className="text-right text-[10px] font-medium text-slate-400 dark:text-neutral-500 uppercase py-1 px-2" style={{ backgroundColor: `${fund.color}${TINT}` }}>Balance</th>
                     </Fragment>
                   );
                 })}
@@ -442,16 +492,20 @@ export default function ScheduleTable({ schedule, funds, showReal, darkMode, tim
                         <span className={isMilestone ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-neutral-400'}>
                           {timelineMode === 'retirement' && row.age ? row.age : row.year}
                         </span>
-                        {isMilestone && milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                        {isMilestone && (
+                          <div className="flex flex-col items-end gap-1">
+                            {milestoneYears.get(row.year)!.map((ms, mi) => <MilestoneTag key={mi} milestone={ms} />)}
+                          </div>
+                        )}
                       </div>
                     </td>
                     {funds.map((fund) => {
                       const v = fundVariants(fund.color, darkMode);
                       return (
                         <Fragment key={fund.id}>
-                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.starting}${TINT}` }}>{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
-                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.contributions}${TINT}` }}>{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
-                          <td className="py-2 px-2 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${v.interest}${TINT}` }}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
+                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.contributions}${TINT}` }}>{formatCurrency(row.fundContributions[fund.id] || 0)}</td>
+                          <td className="py-2 px-2 text-right text-xs text-slate-400 dark:text-neutral-500 tabular-nums" style={{ backgroundColor: `${v.interest}${TINT}` }}>{formatCurrency(row.fundInterest[fund.id] || 0)}</td>
+                          <td className="py-2 px-2 text-right text-xs text-slate-500 dark:text-neutral-400 tabular-nums" style={{ backgroundColor: `${fund.color}${TINT}` }}>{formatCurrency(row.fundBalances[fund.id] || 0)}</td>
                         </Fragment>
                       );
                     })}

@@ -92,8 +92,16 @@ interface SummaryStatsProps {
 }
 
 export default function SummaryStats({ result, showReal, strategies, allResults }: SummaryStatsProps) {
-  const { finalBalance, finalRealBalance, totalContributed, totalIncome, totalInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
+  const { finalBalance, finalRealBalance, totalContributed, totalRealContributed, totalIncome, totalInterest, totalRealInterest, totalStartingBalance, effectiveCAGR, realCAGR, doublingTimeYears, realDoublingTimeYears, schedule, contributionExceedsIncomeYear } = result;
+
   const displayBalance = showReal ? finalRealBalance : finalBalance;
+  const displayContributed = showReal ? totalRealContributed : totalContributed;
+  const displayInterest = showReal ? totalRealInterest : totalInterest;
+  const displayInvested = showReal ? (totalStartingBalance + totalRealContributed) : (totalStartingBalance + totalContributed);
+  const displayNetWorth = showReal ? result.realNetWorth : result.netWorth;
+  const displayRemainingDebt = showReal ? result.realRemainingDebt : result.remainingDebt;
+  const netWorthDelta = displayNetWorth - (totalStartingBalance - result.initialDebtBalance);
+
   const totalYears = schedule.length > 0 ? schedule.length - 1 : 0;
 
   return (
@@ -105,8 +113,8 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
           const items = strategies.map((s) => {
             const r = allResults.get(s.id);
             const final = r ? (showReal ? r.finalRealBalance : r.finalBalance) : 0;
-            const invested = r ? (r.totalStartingBalance + r.totalContributed) : 0;
-            const interest = r ? r.totalInterest : 0;
+            const invested = r ? (showReal ? (r.totalStartingBalance + r.totalRealContributed) : (r.totalStartingBalance + r.totalContributed)) : 0;
+            const interest = r ? (showReal ? r.totalRealInterest : r.totalInterest) : 0;
             const cagr = r ? (showReal ? r.realCAGR : r.effectiveCAGR) : 0;
             const years = r ? (r.schedule.length > 0 ? r.schedule.length - 1 : 0) : 0;
             const doubling = r ? (showReal ? r.realDoublingTimeYears : r.doublingTimeYears) : Infinity;
@@ -179,25 +187,43 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Final Balance</span>
             <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayBalance)}</span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">after {totalYears} {totalYears === 1 ? 'year' : 'years'}</span>
-            {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">in today's dollars</span>}
+            {showReal && (
+              <InlineTooltip text="Adjusted for inflation to represent actual purchasing power in today's dollars.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 cursor-help">in today's dollars</span>
+              </InlineTooltip>
+            )}
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Invested</span>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalStartingBalance + totalContributed)}</span>
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + ${totalContributed.toLocaleString()} contrib.</span>
-            {totalIncome > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalContributed / totalIncome * 100)} of income saved</span>}
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayInvested)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">${totalStartingBalance.toLocaleString()} start + {formatCompact(displayContributed)} contrib.</span>
+            {totalIncome > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(displayContributed / totalIncome * 100)} of income saved</span>}
+            {showReal && (
+              <InlineTooltip text="Present Value (PV) discounting reduces future contributions by expected inflation to show their equivalent value today.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">PV discounted</span>
+              </InlineTooltip>
+            )}
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Interest Earned</span>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(totalInterest)}</span>
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(finalBalance > 0 ? (totalInterest / finalBalance) * 100 : 0)} of total invested</span>
-            {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(totalInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
+            <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatCurrency(displayInterest)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(displayBalance > 0 ? (displayInterest / displayBalance) * 100 : 0)} of total balance</span>
+            {totalStartingBalance > 0 && <span className="text-[10px] text-slate-400 dark:text-neutral-500">{formatPercent(displayInterest / totalStartingBalance * 100, 0)} of starting bal.</span>}
+            {showReal && (
+              <InlineTooltip text="Real interest earned, calculated as the inflation-adjusted final balance minus the PV-discounted amount invested.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">real interest</span>
+              </InlineTooltip>
+            )}
           </div>
           <Tooltip text={showReal ? 'Real CAGR — the inflation-adjusted average annual growth rate of your total invested amount over the given period.' : 'CAGR (Compound Annual Growth Rate) is the average annual rate of return that would take your total invested amount to the final balance over the given period.'}>
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Growth</span>
             <span className="text-lg font-semibold text-slate-900 dark:text-white tabular-nums">{formatPercent(showReal ? realCAGR : effectiveCAGR)} CAGR</span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">Doubles in ~{formatYears(showReal ? realDoublingTimeYears : doublingTimeYears)}</span>
-            {showReal && <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80">real return</span>}
+            {showReal && (
+              <InlineTooltip text="Real return represents the inflation-adjusted growth rate, reflecting the true increase in purchasing power.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 cursor-help">real return</span>
+              </InlineTooltip>
+            )}
           </Tooltip>
         </div>
       )}
@@ -215,17 +241,22 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Worth</span>
-            <span className={`text-lg font-semibold tabular-nums ${result.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.netWorth < 0 ? { color: COLOR_DEBT } : undefined}>
-              {result.netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(result.netWorth))}
+            <span className={`text-lg font-semibold tabular-nums ${displayNetWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={displayNetWorth < 0 ? { color: COLOR_DEBT } : undefined}>
+              {displayNetWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(displayNetWorth))}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">assets − debts</span>
+            {showReal && (
+              <InlineTooltip text="Adjusted for inflation to represent actual purchasing power in today's dollars.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">in today's dollars</span>
+              </InlineTooltip>
+            )}
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
               {result.debtFreeYear !== null ? 'Debt Free' : 'Debt Remaining'}
             </span>
             <span className={`text-lg font-semibold tabular-nums ${result.debtFreeYear !== null ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.debtFreeYear === null ? { color: COLOR_DEBT } : undefined}>
-              {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : formatCurrency(result.remainingDebt)}
+              {result.debtFreeYear !== null ? `Year ${result.debtFreeYear}` : formatCurrency(displayRemainingDebt)}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">
               {totalStartingBalance - result.initialDebtBalance > 0
@@ -234,19 +265,34 @@ export default function SummaryStats({ result, showReal, strategies, allResults 
                   ? `${result.positiveNetWorthYear} ${result.positiveNetWorthYear === 1 ? 'year' : 'years'} to + net worth`
                   : 'net worth remains negative')}
             </span>
+            {showReal && result.debtFreeYear === null && (
+              <InlineTooltip text="Adjusted for inflation to represent actual purchasing power in today's dollars.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">in today's dollars</span>
+              </InlineTooltip>
+            )}
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-xs text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Net Change</span>
-            <span className={`text-lg font-semibold tabular-nums ${result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={result.netWorth - (totalStartingBalance - result.initialDebtBalance) < 0 ? { color: COLOR_DEBT } : undefined}>
-              {result.netWorth - (totalStartingBalance - result.initialDebtBalance) >= 0 ? '+' : '−'}
-              {formatCurrency(Math.abs(result.netWorth - (totalStartingBalance - result.initialDebtBalance)))}
+            <span className={`text-lg font-semibold tabular-nums ${netWorthDelta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={netWorthDelta < 0 ? { color: COLOR_DEBT } : undefined}>
+              {netWorthDelta >= 0 ? '+' : '−'}
+              {formatCurrency(Math.abs(netWorthDelta))}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-neutral-500">total Δ in net worth</span>
+            {showReal && (
+              <InlineTooltip text="Adjusted for inflation to represent actual purchasing power in today's dollars.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">in today's dollars</span>
+              </InlineTooltip>
+            )}
           </div>
           <div className="stat-card items-center text-center">
             <span className="text-[11px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">Total Debt Paid</span>
-            <span className="text-lg font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>{formatCurrency(result.totalDebtPayments)}</span>
-            <span className="text-[10px] text-slate-400 dark:text-neutral-500">paid {formatCurrency(result.totalDebtInterestPaid)} in interest</span>
+            <span className="text-lg font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>{formatCurrency(showReal ? result.totalRealDebtPayments : result.totalDebtPayments)}</span>
+            <span className="text-[10px] text-slate-400 dark:text-neutral-500">paid {formatCurrency(showReal ? result.totalRealDebtInterestPaid : result.totalDebtInterestPaid)} in interest</span>
+            {showReal && (
+              <InlineTooltip text="Present Value (PV) discounting reduces future debt payments by expected inflation to show their equivalent cost in today's dollars.">
+                <span className="text-[10px] text-orange-700/80 dark:text-orange-400/80 mt-1 cursor-help">PV discounted</span>
+              </InlineTooltip>
+            )}
           </div>
         </div>
       )}

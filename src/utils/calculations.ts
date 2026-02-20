@@ -9,7 +9,7 @@ import {
   MILESTONE_THRESHOLDS,
 } from '../types';
 import { formatCompact } from './formatters';
-import { COLOR_DEBT } from './colors';
+import { COLOR_DEBT, COLOR_CONTRIBUTIONS } from './colors';
 
 export function computeProjection(
   global: GlobalSettings,
@@ -67,6 +67,14 @@ export function computeProjection(
   let cumulativeInterest = 0;
   let cumulativeDebtPayments = 0;
   let cumulativeDebtInterest = 0;
+
+  // Real PV-discounted trackers
+  let realCumulativeContributions = 0;
+  let realCumulativeInterest = 0;
+  let realCumulativeDebtPayments = 0;
+  let realCumulativeDebtInterest = 0;
+  const realFundContributions: Record<string, number> = {};
+
   let totalIncome = 0;
   let contributionExceedsIncomeYear: number | null = null;
   let debtFreeYear: number | null = null;
@@ -80,6 +88,7 @@ export function computeProjection(
     year0FundBalances[f.id] = f.startingBalance;
     year0FundContributions[f.id] = 0;
     year0FundInterest[f.id] = 0;
+    realFundContributions[f.id] = 0;
   }
   const year0DebtBalances: Record<string, number> = {};
   const year0DebtPayments: Record<string, number> = {};
@@ -115,6 +124,12 @@ export function computeProjection(
     debtInterestPaid: year0DebtInterest,
     cumulativeDebtPayments: 0,
     cumulativeDebtInterest: 0,
+    // Real defaults for year 0
+    realCumulativeContributions: 0,
+    realCumulativeInterest: 0,
+    realFundContributions: { ...realFundContributions },
+    realCumulativeDebtPayments: 0,
+    realCumulativeDebtInterest: 0,
   });
 
   for (let y = 1; y <= totalYears; y++) {
@@ -182,8 +197,16 @@ export function computeProjection(
       yearInterest += fundInt;
     }
 
+    const inflationFactor = Math.pow(1 + g.inflationRate / 100, y);
+
+    for (const fund of funds) {
+      realFundContributions[fund.id] += (fundContributions[fund.id] || 0) / inflationFactor;
+    }
+
     cumulativeContributions += yearContribution;
     cumulativeInterest += yearInterest;
+
+    realCumulativeContributions += yearContribution / inflationFactor;
 
     // Check if total contributions exceed income this year
     if (contributionExceedsIncomeYear === null && g.income > 0 && yearContribution > incomeThisYear) {
@@ -260,6 +283,9 @@ export function computeProjection(
     cumulativeDebtPayments += yearDebtPayment;
     cumulativeDebtInterest += yearDebtInterest;
 
+    realCumulativeDebtPayments += yearDebtPayment / inflationFactor;
+    realCumulativeDebtInterest += yearDebtInterest / inflationFactor;
+
     const totalDebtRemaining = debts.reduce((s, d) => s + (debtBal[d.id] || 0), 0);
 
     // Detect debt-free year
@@ -268,7 +294,10 @@ export function computeProjection(
     }
 
     const endBalance = funds.reduce((s, f) => s + (bal[f.id] || 0), 0);
-    const inflationFactor = Math.pow(1 + g.inflationRate / 100, y);
+    const realEndBalance = endBalance / inflationFactor;
+
+    // Real interest is end balance minus starting balance and real contributions
+    realCumulativeInterest = realEndBalance - totalStartingBalance - realCumulativeContributions;
 
     const pctTotal = endBalance > 0 ? 100 / endBalance : 0;
 
@@ -285,7 +314,7 @@ export function computeProjection(
       fundBalances: { ...bal },
       fundContributions,
       fundInterest,
-      realEndBalance: endBalance / inflationFactor,
+      realEndBalance,
       pctStartingBalance: totalStartingBalance * pctTotal,
       pctContributions: cumulativeContributions * pctTotal,
       pctInterest: cumulativeInterest * pctTotal,
@@ -298,6 +327,11 @@ export function computeProjection(
       debtInterestPaid,
       cumulativeDebtPayments,
       cumulativeDebtInterest,
+      realCumulativeContributions,
+      realCumulativeInterest,
+      realFundContributions: { ...realFundContributions },
+      realCumulativeDebtPayments,
+      realCumulativeDebtInterest,
     };
 
     schedule.push(row);
@@ -311,7 +345,7 @@ export function computeProjection(
         year: y,
         label: 'Positive Net Worth',
         icon: '+',
-        color: '#22c55e', // Green
+        color: COLOR_CONTRIBUTIONS,
         custom: true,
       });
       // Also add to assets list for visibility
@@ -320,7 +354,7 @@ export function computeProjection(
         year: y,
         label: 'Positive Net Worth',
         icon: '+',
-        color: '#22c55e', // Green
+        color: COLOR_CONTRIBUTIONS,
         custom: true,
       });
     }
@@ -330,7 +364,7 @@ export function computeProjection(
       if (debt.principal > 0 && !paidDebts.has(debt.id) && (debtBal[debt.id] || 0) <= 0) {
         paidDebts.add(debt.id);
         payoffCounter++;
-        const label = `${debt.name} Paid Off`;
+        const label = `${debt.name} Paid`;
 
         milestones.push({
           amount: endBalance,
@@ -390,6 +424,10 @@ export function computeProjection(
   const finalRealBalance = schedule.length > 0 ? schedule[schedule.length - 1].realEndBalance : totalStartingBalance;
   const finalDebtBalance = schedule.length > 0 ? schedule[schedule.length - 1].debtBalance : initialDebtBalance;
 
+  const finalInflationFactor = Math.pow(1 + g.inflationRate / 100, totalYears);
+  const realRemainingDebt = finalDebtBalance / finalInflationFactor;
+  const realNetWorth = finalRealBalance - realRemainingDebt;
+
   const totalInvested = totalStartingBalance + cumulativeContributions;
   const effectiveCAGR =
     totalInvested > 0 && totalYears > 0
@@ -426,5 +464,11 @@ export function computeProjection(
     debtFreeYear,
     netWorth: finalBalance - finalDebtBalance,
     positiveNetWorthYear,
+    totalRealContributed: realCumulativeContributions,
+    totalRealInterest: finalRealBalance - totalStartingBalance - realCumulativeContributions,
+    totalRealDebtPayments: realCumulativeDebtPayments,
+    totalRealDebtInterestPaid: realCumulativeDebtInterest,
+    realRemainingDebt,
+    realNetWorth,
   };
 }
