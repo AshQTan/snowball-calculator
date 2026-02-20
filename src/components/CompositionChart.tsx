@@ -334,8 +334,8 @@ export default function CompositionChart({
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap items-center justify-between gap-y-2 mt-3 px-2">
+            {/* Legend and Annual Scorecards */}
+            <div className="flex flex-wrap items-center justify-between gap-y-3 mt-4 px-2">
                 <div className="flex flex-wrap items-center gap-4">
                     <LegendItem color={COLOR_STARTING} label="Starting Balance" />
                     <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
@@ -346,17 +346,67 @@ export default function CompositionChart({
                     )}
                 </div>
 
-                {data.debtTotal > 0 && (
-                    <div className="text-xs font-semibold tabular-nums">
-                        <span className="text-slate-400 dark:text-neutral-500 mr-1.5 font-medium uppercase tracking-wider text-[10px]">Net Worth</span>
-                        <span
-                            className={data.total - data.debtTotal >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""}
-                            style={data.total - data.debtTotal < 0 ? { color: COLOR_DEBT } : undefined}
-                        >
-                            {data.total - data.debtTotal < 0 ? '−' : ''}{formatCurrency(Math.abs(data.total - data.debtTotal))}
-                        </span>
+                <div className="flex items-center gap-2">
+                    {/* Asset Interest */}
+                    <div className="group/ag relative bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
+                        <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">Asset Growth</span>
+                        <div className="flex items-center gap-1 leading-none">
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                +{formatCurrency(row?.totalInterest || 0)}
+                            </span>
+                            <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 tabular-nums">
+                                ({formatPercent(row?.startBalance ? (row.totalInterest / row.startBalance) * 100 : 0)})
+                            </span>
+                        </div>
+                        <div className="absolute bottom-full right-0 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover/ag:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
+                            Percentage growth of assets relative to the starting balance for this specific year.
+                        </div>
                     </div>
-                )}
+
+                    {/* Debt Reduction */}
+                    {(initialDebt > 0 || data.debtTotal > 0 || (row?.totalDebtPayment || 0) > 0) && (() => {
+                        const debtChange = (row?.totalDebtPayment || 0) - (row?.totalDebtInterest || 0);
+                        const startDebt = (row?.debtBalance || 0) + debtChange;
+                        const pctChange = startDebt > 0 ? (debtChange / startDebt) * 100 : 0;
+                        const isReduction = debtChange >= 0;
+
+                        return (
+                            <div className="group/dr relative bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
+                                <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">
+                                    {isReduction ? 'Debt Reduction' : 'Debt Growth'}
+                                </span>
+                                <div className="flex items-center gap-1 leading-none">
+                                    <span className={`text-xs font-semibold tabular-nums ${isReduction ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={!isReduction ? { color: COLOR_DEBT } : undefined}>
+                                        {isReduction ? '−' : '+'}{formatCurrency(Math.abs(debtChange))}
+                                    </span>
+                                    {startDebt > 0 && (
+                                        <span className={`text-[9px] tabular-nums ${isReduction ? 'text-emerald-600/70 dark:text-emerald-400/70' : 'opacity-70'}`} style={!isReduction ? { color: COLOR_DEBT } : undefined}>
+                                            ({isReduction ? '−' : '+'}{formatPercent(Math.abs(pctChange))})
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="absolute bottom-full right-0 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover/dr:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
+                                    {isReduction
+                                        ? "Percentage decrease of your debt balance relative to the starting debt for this specific year."
+                                        : "Percentage increase of your debt balance relative to the starting debt for this specific year."}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Net Worth */}
+                    {(initialDebt > 0 || data.debtTotal > 0) && (
+                        <div className="bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
+                            <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">Net Worth</span>
+                            <span
+                                className={`text-xs font-semibold tabular-nums leading-none ${data.total - data.debtTotal >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                                style={data.total - data.debtTotal < 0 ? { color: COLOR_DEBT } : undefined}
+                            >
+                                {data.total - data.debtTotal < 0 ? '−' : ''}{formatCurrency(Math.abs(data.total - data.debtTotal))}
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Strategy comparison bars */}
