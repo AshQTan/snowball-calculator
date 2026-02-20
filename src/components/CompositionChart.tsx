@@ -174,7 +174,7 @@ export default function CompositionChart({
                     <div className="space-y-1.5">
                         {fundData.map(({ fund, pctStart, pctContrib, pctInterest, pctOfTotal, startVal, contribVal, interestVal, total }) => {
                             return (
-                                <div key={fund.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${fund.color}25` }}>
+                                <div key={fund.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${fund.color}40` }}>
                                     <div className="flex items-center justify-between">
                                         <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{fund.name}</div>
                                         <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">
@@ -238,7 +238,7 @@ export default function CompositionChart({
                                     const pctExcess = current > 0 ? (excessVal / current) * 100 : 0;
 
                                     return (
-                                        <div key={debt.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${debt.color}25` }}>
+                                        <div key={debt.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${debt.color}40` }}>
                                             <div className="flex items-center justify-between">
                                                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{debt.name}</div>
                                                 <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">

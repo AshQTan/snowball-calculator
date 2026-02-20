@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceDot,
   Label,
+  ReferenceLine,
 } from 'recharts';
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
 import { Strategy, ProjectionResult, ChartMode } from '../types';
@@ -49,11 +50,13 @@ function OverlayMilestoneLabel(props: { viewBox?: { x: number; y: number; width?
   );
 }
 
-type CompareMetric = 'balance' | 'interest' | 'contributions';
+type CompareMetric = 'balance' | 'interest' | 'contributions' | 'debt' | 'netWorth';
 const METRIC_LABELS: Record<CompareMetric, string> = {
   balance: 'Total Balance',
+  netWorth: 'Net Worth',
   interest: 'Interest',
   contributions: 'Contributions',
+  debt: 'Debt',
 };
 
 interface ProjectionChartComparisonProps {
@@ -112,10 +115,17 @@ export default function ProjectionChartComparison({
         const interest = showReal ? r.realEndBalance - r.cumulativeStartingBalance - contributions : r.cumulativeInterest;
         const startingBal = r.cumulativeStartingBalance;
 
+        // Debt & NW
+        const inflationFactorNW = showReal ? Math.pow(1 + inflationRate / 100, r.year) : 1;
+        const debt = showReal ? (r.debtBalance || 0) / inflationFactorNW : (r.debtBalance || 0);
+        const nw = showReal ? (r.netWorth ?? balance) / inflationFactorNW : (r.netWorth ?? balance);
+
         row[`${s.id}_balance`] = balance;
         row[`${s.id}_interest`] = interest;
         row[`${s.id}_contributions`] = contributions;
         row[`${s.id}_startingBal`] = startingBal;
+        row[`${s.id}_debt`] = debt;
+        row[`${s.id}_netWorth`] = nw;
       }
 
       rows.push(row);
@@ -133,41 +143,54 @@ export default function ProjectionChartComparison({
   const milestoneMarkers = useMemo(() => {
     if (!showMilestones) return [];
     // Build global chevron index across all strategies
-    const globalAmounts = new Set<number>();
+    const globalAmounts = new Map<string, number>();
     for (const s of strategies) {
       const res = allResults.get(s.id);
       if (!res) continue;
-      for (const m of res.milestones) globalAmounts.add(m.amount);
+      const sourceMilestones = metric === 'netWorth' ? res.milestonesNetWorth || [] : res.milestones || [];
+      for (const m of sourceMilestones) {
+        const key = (m.icon || m.inverted) ? m.label : m.amount.toString();
+        globalAmounts.set(key, m.amount);
+      }
     }
-    const sortedAmounts = [...globalAmounts].sort((a, b) => a - b);
-    const chevronByAmount = new Map<number, number>();
-    sortedAmounts.forEach((amount, i) => chevronByAmount.set(amount, i + 1));
+    const sortedKeys = [...globalAmounts.keys()].sort((a, b) => globalAmounts.get(a)! - globalAmounts.get(b)!);
+    const chevronByKey = new Map<string, number>();
+    sortedKeys.forEach((key, i) => chevronByKey.set(key, i + 1));
 
     const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; milestoneColor?: string; strategyIndex: number; totalStrategies: number }[] = [];
     for (let si = 0; si < strategies.length; si++) {
       const s = strategies[si];
       const res = allResults.get(s.id);
       if (!res) continue;
-      for (const m of res.milestones) {
+      const sourceMilestones = metric === 'netWorth' ? res.milestonesNetWorth || [] : res.milestones || [];
+      for (const m of sourceMilestones) {
         const row = res.schedule.find((r) => r.year === m.year);
         if (!row) continue;
         const xLabel = timelineMode === 'retirement' && row.age ? `${row.age}` : `${m.year}`;
-        const value = showReal ? row.realEndBalance : row.endBalance;
+        let value = 0;
+        if (metric === 'netWorth') {
+          const nominalNW = row.netWorth ?? row.endBalance;
+          const inflationFactor = showReal ? Math.pow(1 + inflationRate / 100, row.year) : 1;
+          value = showReal ? nominalNW / inflationFactor : nominalNW;
+        } else {
+          value = showReal ? row.realEndBalance : row.endBalance;
+        }
+        const key = (m.icon || m.inverted) ? m.label : m.amount.toString();
         markers.push({
           strategyId: s.id,
-          color: s.color,
+          color: s.color, // Color for strategy lines/bars
           xLabel,
           value,
-          chevronCount: chevronByAmount.get(m.amount) ?? 1,
+          chevronCount: chevronByKey.get(key) ?? 1,
           icon: m.icon,
-          milestoneColor: m.color,
+          milestoneColor: m.color || '#7dd3fc', // Decoupled color for the milestone marker itself
           strategyIndex: si,
           totalStrategies: strategies.length,
         });
       }
     }
     return markers;
-  }, [strategies, allResults, showMilestones, showReal, timelineMode]);
+  }, [strategies, allResults, showMilestones, showReal, timelineMode, metric, inflationRate]);
 
   return (
     <div className={hideHeader ? '' : 'card'}>
@@ -183,7 +206,7 @@ export default function ProjectionChartComparison({
           )}
           {/* Metric toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
-            {(['balance', 'interest', 'contributions'] as CompareMetric[]).map((m) => (
+            {(['balance', 'netWorth', 'interest', 'contributions', 'debt'] as CompareMetric[]).map((m) => (
               <button
                 key={m}
                 className={`px-2 py-1 text-[11px] rounded-md transition-all ${metric === m
@@ -256,7 +279,7 @@ export default function ProjectionChartComparison({
                   activeDot={{ r: 4, strokeWidth: 0 }}
                 />
               ))}
-              {metric === 'balance' && milestoneMarkers.map((m) => (
+              {(metric === 'balance' || metric === 'netWorth') && milestoneMarkers.map((m) => (
                 <ReferenceDot
                   key={`${m.strategyId}_${m.chevronCount}`}
                   x={m.xLabel}
@@ -269,6 +292,7 @@ export default function ProjectionChartComparison({
                   <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.milestoneColor || m.color} />} />
                 </ReferenceDot>
               ))}
+              {metric === 'netWorth' && <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />}
             </LineChart>
           ) : (
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -305,7 +329,7 @@ export default function ProjectionChartComparison({
                   radius={[2, 2, 0, 0]}
                 />
               ))}
-              {metric === 'balance' && milestoneMarkers.map((m) => {
+              {(metric === 'balance' || metric === 'netWorth') && milestoneMarkers.map((m) => {
                 // Offset chevrons horizontally per strategy so they don't overlap
                 const dx = (m.strategyIndex - (m.totalStrategies - 1) / 2) * 12;
                 return (
@@ -366,7 +390,7 @@ function ComparisonTooltip({
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload as Record<string, number>;
 
-  const fields = ['balance', 'interest', 'contributions', 'startingBal'] as const;
+  const fields = ['balance', 'interest', 'contributions', 'startingBal', 'debt', 'netWorth'] as const;
 
   // Build strategy rows sorted by balance descending
   const rows = strategies
@@ -376,6 +400,8 @@ function ComparisonTooltip({
       interest: (data[`${s.id}_interest`] as number) ?? 0,
       contributions: (data[`${s.id}_contributions`] as number) ?? 0,
       startingBal: (data[`${s.id}_startingBal`] as number) ?? 0,
+      debt: (data[`${s.id}_debt`] as number) ?? 0,
+      netWorth: (data[`${s.id}_netWorth`] as number) ?? 0,
     }))
     .sort((a, b) => b.balance - a.balance);
 
@@ -425,9 +451,11 @@ function ComparisonTooltip({
             {/* Breakdown */}
             <div className="ml-3.5 space-y-0.5">
               {([
+                { label: 'Net Worth', field: 'netWorth', value: r.netWorth },
                 { label: 'Interest', field: 'interest', value: r.interest },
                 { label: 'Contributions', field: 'contributions', value: r.contributions },
                 { label: 'Starting Bal.', field: 'startingBal', value: r.startingBal },
+                { label: 'Debt', field: 'debt', value: r.debt },
               ] as const).map((item) => (
                 <div key={item.label} className="flex justify-between gap-4">
                   <span className="text-[10px] text-slate-500 dark:text-neutral-400">{item.label}</span>

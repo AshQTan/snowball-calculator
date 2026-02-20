@@ -69,35 +69,60 @@ function LegendChevrons({ count, color = '#7dd3fc' }: { count: number; color?: s
   );
 }
 
-// Milestone chevron label colored per strategy
-function GridMilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; chevronCount?: number; icon?: string; color?: string }) {
-  const { viewBox, chevronCount = 1, icon, color = '#7dd3fc' } = props;
-  if (!viewBox) return null;
+// Milestone label that renders stacked SVG chevrons or an emoji icon (using ProjectionChart implementation)
+function MilestoneLabel(props: { viewBox?: { x: number; y: number; width?: number; height?: number }; milestones?: any[] }) {
+  const { viewBox, milestones } = props;
+  if (!viewBox || !milestones || milestones.length === 0) return null;
   const cx = viewBox.width != null && viewBox.width > 0 ? viewBox.x + viewBox.width / 2 : viewBox.x;
   const cy = viewBox.height != null && viewBox.height > 0 ? viewBox.y + viewBox.height / 2 : viewBox.y;
-  if (icon) {
-    return (
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto" fill={color}>
-        {icon}
-      </text>
-    );
-  }
-  const clamped = Math.min(chevronCount, 7);
-  const spacing = 6;
-  const startY = cy - 14 - (clamped - 1) * spacing;
+
+  let currentBottomY = cy - 14;
+  const gap = 8;
+
   return (
     <g>
-      {Array.from({ length: clamped }).map((_, i) => (
-        <polyline
-          key={i}
-          points={`${cx - 4},${startY + i * spacing + 3} ${cx},${startY + i * spacing} ${cx + 4},${startY + i * spacing + 3}`}
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      ))}
+      {milestones.map((m, mIdx) => {
+        const color = m.color || '#7dd3fc';
+        if (m.icon) {
+          const y = currentBottomY;
+          currentBottomY -= (14 + gap);
+          return (
+            <text key={mIdx} x={cx} y={y} textAnchor="middle" fontSize="14" dominantBaseline="auto" fill={color}>
+              {m.icon}
+            </text>
+          );
+        }
+
+        const maxChevrons = 5;
+        const clamped = Math.min(m.chevronCount || 1, maxChevrons);
+        const spacing = 6;
+        const stackHeight = (clamped - 1) * spacing + 4;
+
+        const element = (
+          <g key={mIdx}>
+            {Array.from({ length: clamped }).map((_, i) => {
+              const offset = (clamped - 1 - i) * spacing;
+              const yPos = currentBottomY - offset;
+              return (
+                <polyline
+                  key={i}
+                  points={m.inverted
+                    ? `${cx - 5},${yPos} ${cx},${yPos + 4} ${cx + 5},${yPos}`
+                    : `${cx - 5},${yPos + 4} ${cx},${yPos} ${cx + 5},${yPos + 4}`
+                  }
+                  stroke={color}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              );
+            })}
+          </g>
+        );
+        currentBottomY -= (stackHeight + gap);
+        return element;
+      })}
     </g>
   );
 }
@@ -230,9 +255,9 @@ export default function ProjectionChartGrid({
   const anyHasManyFunds = strategies.some((s) => s.funds.length > 1);
   const hasDebts = strategies.some((s) => (s.debts || []).some((d) => d.principal > 0));
 
-  // Milestone data per strategy — chevronCounts are globally consistent
+  // Milestone data per strategy — chevronCounts are globally consistent and properly grouped by year
   const allMilestoneData = useMemo(() => {
-    if (!showMilestones) return new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string; color?: string }[]>();
+    if (!showMilestones) return new Map<string, { xLabel: string; balance: number; milestones: any[] }[]>();
 
     // 1. Collect the global union of all milestones reached across any strategy
     const globalMilestones = new Map<number, { icon?: string; label: string; chevronCount?: number }>();
@@ -261,17 +286,15 @@ export default function ProjectionChartGrid({
     });
 
     // 3. Build per-strategy milestone data using global chevron counts
-    const map = new Map<string, { amount: number; xLabel: string; balance: number; chevronCount: number; icon?: string; label: string; color?: string }[]>();
+    const map = new Map<string, { xLabel: string; balance: number; milestones: any[] }[]>();
     for (const s of strategies) {
       const res = allResults.get(s.id);
       if (!res) continue;
       const hasManyFunds = s.funds.length > 1;
       const useNominal = hasManyFunds && stackView !== 'by-type';
-      const entries = res.milestones
+      const calculated = res.milestones
         .map((m) => {
           const row = res.schedule.find((r) => r.year === m.year);
-          // Y-value depends on view mode (if we had viewMode prop here, but grid is mostly assets view?)
-          // actually grid DOES receive viewMode.
           let balance = 0;
           if (viewMode === 'networth') {
             const nominalNW = row?.netWorth ?? 0;
@@ -281,13 +304,27 @@ export default function ProjectionChartGrid({
             balance = showReal && !useNominal ? (row?.realEndBalance || 0) : (row?.endBalance || 0);
           }
           const xLabel = timelineMode === 'retirement' && row?.age ? `${row.age}` : `${m.year}`;
-          return { amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label, color: m.color };
+          return { ...m, amount: m.amount, xLabel, balance, chevronCount: chevronByAmount.get(m.amount) ?? 1, icon: m.icon, label: m.label, color: m.color || '#7dd3fc' };
         })
         .sort((a, b) => a.amount - b.amount);
+
+      const grouped = new Map<string, typeof calculated>();
+      for (const m of calculated) {
+        if (!grouped.has(m.xLabel)) {
+          grouped.set(m.xLabel, []);
+        }
+        grouped.get(m.xLabel)!.push(m);
+      }
+
+      const entries = Array.from(grouped.entries()).map(([xLabel, group]) => ({
+        xLabel,
+        balance: group[0].balance,
+        milestones: group
+      }));
       map.set(s.id, entries);
     }
     return map;
-  }, [strategies, allResults, showMilestones, showReal, timelineMode, stackView]);
+  }, [strategies, allResults, showMilestones, showReal, timelineMode, stackView, viewMode, inflationRate]);
 
   const handleMouseMove = useCallback((strategyId: string, e: { activeTooltipIndex?: number }) => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
@@ -650,19 +687,22 @@ export default function ProjectionChartGrid({
                               <Area type="monotone" dataKey="interest" stackId="stack" stroke={COLOR_INTEREST} strokeWidth={1.5} fill={`url(#interestGrad_${strategy.id})`} dot={false} />
                             </>
                           )}
+                          {hasDebts && (
+                            <Area type="monotone" dataKey="debtBalance" stackId="debt" stroke={COLOR_DEBT} strokeWidth={1.5} fill={`url(#debtGrad_${strategy.id})`} dot={false} />
+                          )}
+                          <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                         </>
                       )}
-                      {(allMilestoneData.get(strategy.id) || []).map((m) => (
+                      {(allMilestoneData.get(strategy.id) || []).map((group) => (
                         <ReferenceDot
-                          key={m.amount}
-                          x={m.xLabel}
-                          y={m.balance}
-                          r={3}
-                          fill={strategy.color}
-                          stroke={strategy.color}
-                          strokeWidth={0}
+                          key={group.xLabel}
+                          x={group.xLabel}
+                          y={group.balance}
+                          r={4}
+                          fill={group.milestones[0].color || '#7dd3fc'}
+                          stroke="none"
                         >
-                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color || strategy.color} />} />
+                          <Label content={<MilestoneLabel milestones={group.milestones} />} />
                         </ReferenceDot>
                       ))}
                     </AreaChart>
@@ -740,18 +780,22 @@ export default function ProjectionChartGrid({
                               <Bar dataKey="interest" stackId="stack" fill={COLOR_INTEREST} name="Interest" radius={[2, 2, 0, 0]} />
                             </>
                           )}
+                          {hasDebts && (
+                            <Bar dataKey="debtBalance" stackId="debt" fill={COLOR_DEBT} name="Debt" />
+                          )}
+                          <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />
                         </>
                       )}
-                      {(allMilestoneData.get(strategy.id) || []).map((m) => (
+                      {(allMilestoneData.get(strategy.id) || []).map((group) => (
                         <ReferenceDot
-                          key={m.amount}
-                          x={m.xLabel}
-                          y={m.balance}
+                          key={group.xLabel}
+                          x={group.xLabel}
+                          y={group.balance}
                           r={0}
                           fill="none"
                           stroke="none"
                         >
-                          <Label content={<GridMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.color || strategy.color} />} />
+                          <Label content={<MilestoneLabel milestones={group.milestones} />} />
                         </ReferenceDot>
                       ))}
                     </BarChart>
@@ -795,13 +839,16 @@ export default function ProjectionChartGrid({
         {/* Milestone legend entries */}
         {showMilestones && (() => {
           // Collect unique milestones by amount (deduped across strategies)
-          const seen = new Set<number>();
+          const seen = new Set<string>();
           const entries: { amount: number; chevronCount: number; icon?: string; label: string }[] = [];
           for (const milestones of allMilestoneData.values()) {
-            for (const m of milestones) {
-              if (!seen.has(m.amount)) {
-                seen.add(m.amount);
-                entries.push({ amount: m.amount, chevronCount: m.chevronCount, icon: m.icon, label: m.label });
+            for (const group of milestones) {
+              for (const m of group.milestones) {
+                const key = (m.icon || m.inverted) ? m.label : m.amount.toString();
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  entries.push({ amount: m.amount, chevronCount: m.chevronCount, icon: m.icon, label: m.label });
+                }
               }
             }
           }

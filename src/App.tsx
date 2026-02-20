@@ -424,16 +424,17 @@ export default function App() {
                 );
               }
               // Multi strategy: global union of milestones
-              const globalMap = new Map<number, { milestone: Milestone; hits: { name: string; color: string; year: number }[] }>();
+              const globalMap = new Map<string, { milestone: Milestone; hits: { name: string; color: string; year: number }[] }>();
               for (const s of state.strategies) {
                 const res = allResults.get(s.id);
                 if (!res) continue;
                 const msList = milestoneBasis === 'netWorth' ? res.milestonesNetWorth : res.milestones;
                 for (const m of msList) {
-                  if (!globalMap.has(m.amount)) {
-                    globalMap.set(m.amount, { milestone: m, hits: [] });
+                  const key = (m.icon || m.inverted) ? m.label : m.amount.toString();
+                  if (!globalMap.has(key)) {
+                    globalMap.set(key, { milestone: m, hits: [] });
                   }
-                  globalMap.get(m.amount)!.hits.push({ name: s.name, color: s.color, year: m.year });
+                  globalMap.get(key)!.hits.push({ name: s.name, color: s.color, year: m.year });
                 }
               }
               const sorted = [...globalMap.values()].sort((a, b) => a.milestone.amount - b.milestone.amount);
