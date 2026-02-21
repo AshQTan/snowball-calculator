@@ -328,7 +328,7 @@ export default function ProjectionChart({
       <div className="h-[350px] sm:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
           {chartMode === 'line' ? (
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} stackOffset="none">
+            <AreaChart data={chartData} margin={{ top: 35, right: 10, left: 0, bottom: 0 }} stackOffset="none">
               <defs>
                 <linearGradient id="startGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={COLOR_STARTING} stopOpacity={0.5} />
@@ -447,7 +447,7 @@ export default function ProjectionChart({
               ))}
             </AreaChart>
           ) : (
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 35, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
                 dataKey="label"

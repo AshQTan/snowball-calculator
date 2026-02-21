@@ -494,6 +494,10 @@ export default function App() {
               initialDebt={result.initialDebtBalance}
               darkMode={darkMode}
               timelineMode={state.global.timelineMode}
+              strategies={state.strategies}
+              activeStrategyId={state.activeStrategyId}
+              allResults={allResults}
+              onSwitchStrategy={setActiveStrategyId}
             />
             <ScheduleTable
               schedule={result.schedule}

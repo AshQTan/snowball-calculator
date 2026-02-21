@@ -574,7 +574,7 @@ export default function ProjectionChartGrid({
                   {chartMode === 'line' ? (
                     <AreaChart
                       data={chartData}
-                      margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                      margin={{ top: 35, right: 10, left: 0, bottom: 0 }}
                       stackOffset="none"
                       onMouseMove={(e) => handleMouseMove(strategy.id, e)}
                       onMouseLeave={handleMouseLeave}
@@ -709,7 +709,7 @@ export default function ProjectionChartGrid({
                   ) : (
                     <BarChart
                       data={chartData}
-                      margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                      margin={{ top: 35, right: 10, left: 0, bottom: 0 }}
                       onMouseMove={(e) => handleMouseMove(strategy.id, e)}
                       onMouseLeave={handleMouseLeave}
                     >

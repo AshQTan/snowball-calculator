@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceDot,
   Label,
+  LabelList,
   ReferenceLine,
 } from 'recharts';
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
@@ -40,6 +41,53 @@ function OverlayMilestoneLabel(props: { viewBox?: { x: number; y: number; width?
           key={i}
           points={`${cx - 4},${startY + i * spacing + 3} ${cx},${startY + i * spacing} ${cx + 4},${startY + i * spacing + 3}`}
           stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      ))}
+    </g>
+  );
+}
+
+function BarMilestoneLabel(props: { x?: number | string; y?: number | string; width?: number | string; height?: number | string; value?: number | string; index?: number; strategyId: string; milestoneMarkers: any[] }) {
+  const { x, y, width, strategyId, milestoneMarkers, index } = props;
+  if (x == null || y == null || width == null || index == null) return null;
+
+  // Find if this specific strategy has a milestone for this specific data point
+  // We check if the marker string `xLabel` matches the index or if it aligns conceptually
+  const marker = milestoneMarkers.find(
+    (m) => m.strategyId === strategyId && m.dataIndex === index
+  );
+  if (!marker) return null;
+
+  const numX = typeof x === 'string' ? parseFloat(x) : x;
+  const numY = typeof y === 'string' ? parseFloat(y) : y;
+  const numWidth = typeof width === 'string' ? parseFloat(width) : width;
+
+  // Render the milestone EXACTLY in the horizontal center of this specific bar section
+  const cx = numX + numWidth / 2;
+  const cy = typeof numY === 'number' && !isNaN(numY) ? numY : 0; // The top of the bar
+
+  if (marker.icon) {
+    return (
+      <text x={cx} y={cy - 14} textAnchor="middle" fontSize="12" dominantBaseline="auto" fill={marker.milestoneColor || marker.color}>
+        {marker.icon}
+      </text>
+    );
+  }
+
+  const clamped = Math.min(marker.chevronCount, 7);
+  const spacing = 6;
+  const startY = cy - 14 - (clamped - 1) * spacing;
+  return (
+    <g>
+      {Array.from({ length: clamped }).map((_, i) => (
+        <polyline
+          key={i}
+          points={`${cx - 4},${startY + i * spacing + 3} ${cx},${startY + i * spacing} ${cx + 4},${startY + i * spacing + 3}`}
+          stroke={marker.milestoneColor || marker.color}
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -157,15 +205,17 @@ export default function ProjectionChartComparison({
     const chevronByKey = new Map<string, number>();
     sortedKeys.forEach((key, i) => chevronByKey.set(key, i + 1));
 
-    const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; milestoneColor?: string; strategyIndex: number; totalStrategies: number }[] = [];
+    const markers: { strategyId: string; color: string; xLabel: string; value: number; chevronCount: number; icon?: string; milestoneColor?: string; strategyIndex: number; totalStrategies: number; dataIndex: number }[] = [];
     for (let si = 0; si < strategies.length; si++) {
       const s = strategies[si];
       const res = allResults.get(s.id);
       if (!res) continue;
       const sourceMilestones = metric === 'netWorth' ? res.milestonesNetWorth || [] : res.milestones || [];
       for (const m of sourceMilestones) {
-        const row = res.schedule.find((r) => r.year === m.year);
-        if (!row) continue;
+        const rowIdx = res.schedule.findIndex((r) => r.year === m.year);
+        if (rowIdx === -1) continue;
+        const row = res.schedule[rowIdx];
+
         const xLabel = timelineMode === 'retirement' && row.age ? `${row.age}` : `${m.year}`;
         let value = 0;
         if (metric === 'netWorth') {
@@ -186,6 +236,7 @@ export default function ProjectionChartComparison({
           milestoneColor: m.color || '#7dd3fc', // Decoupled color for the milestone marker itself
           strategyIndex: si,
           totalStrategies: strategies.length,
+          dataIndex: rowIdx,
         });
       }
     }
@@ -242,7 +293,7 @@ export default function ProjectionChartComparison({
       <div className="h-[350px] sm:h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
           {chartMode === 'line' ? (
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 35, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
                 dataKey="label"
@@ -295,7 +346,7 @@ export default function ProjectionChartComparison({
               {metric === 'netWorth' && <ReferenceLine y={0} stroke={darkMode ? '#525252' : '#94a3b8'} strokeDasharray="4 3" />}
             </LineChart>
           ) : (
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 35, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
               <XAxis
                 dataKey="label"
@@ -327,24 +378,17 @@ export default function ProjectionChartComparison({
                   dataKey={`${s.id}_${metric}`}
                   fill={s.color}
                   radius={[2, 2, 0, 0]}
-                />
+                  isAnimationActive={false}
+                >
+                  {(metric === 'balance' || metric === 'netWorth') && (
+                    <LabelList
+                      dataKey={`${s.id}_${metric}`}
+                      content={(props) => <BarMilestoneLabel {...props} strategyId={s.id} milestoneMarkers={milestoneMarkers} />}
+                      position="top"
+                    />
+                  )}
+                </Bar>
               ))}
-              {(metric === 'balance' || metric === 'netWorth') && milestoneMarkers.map((m) => {
-                // Offset chevrons horizontally per strategy so they don't overlap
-                const dx = (m.strategyIndex - (m.totalStrategies - 1) / 2) * 12;
-                return (
-                  <ReferenceDot
-                    key={`${m.strategyId}_${m.chevronCount}`}
-                    x={m.xLabel}
-                    y={m.value}
-                    r={0}
-                    fill="none"
-                    stroke="none"
-                  >
-                    <Label content={<OverlayMilestoneLabel chevronCount={m.chevronCount} icon={m.icon} color={m.milestoneColor || m.color} dx={dx} />} />
-                  </ReferenceDot>
-                );
-              })}
             </BarChart>
           )}
         </ResponsiveContainer>
@@ -362,6 +406,8 @@ export default function ProjectionChartComparison({
     </div>
   );
 }
+
+
 
 // --- Comparison Tooltip ---
 
