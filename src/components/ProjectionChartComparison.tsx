@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -15,7 +15,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
-import { Strategy, ProjectionResult, ChartMode } from '../types';
+import { Strategy, ProjectionResult, ChartMode, ChartViewMode } from '../types';
 import { formatCurrency, formatCurrencyCompact } from '../utils/formatters';
 
 // Milestone chevron label for overlay chart (strategy-colored)
@@ -97,15 +97,7 @@ function BarMilestoneLabel(props: { x?: number | string; y?: number | string; wi
     </g>
   );
 }
-
 type CompareMetric = 'balance' | 'interest' | 'contributions' | 'debt' | 'netWorth';
-const METRIC_LABELS: Record<CompareMetric, string> = {
-  balance: 'Total Balance',
-  netWorth: 'Net Worth',
-  interest: 'Interest',
-  contributions: 'Contributions',
-  debt: 'Debt',
-};
 
 interface ProjectionChartComparisonProps {
   strategies: Strategy[];
@@ -114,6 +106,7 @@ interface ProjectionChartComparisonProps {
   inflationRate: number;
   timelineMode: 'years' | 'retirement';
   chartMode: ChartMode;
+  viewMode: ChartViewMode;
   darkMode: boolean;
   onChartModeChange: (mode: ChartMode) => void;
   hideHeader?: boolean;
@@ -127,12 +120,13 @@ export default function ProjectionChartComparison({
   inflationRate,
   timelineMode,
   chartMode,
+  viewMode,
   darkMode,
   onChartModeChange,
   hideHeader,
   showMilestones,
 }: ProjectionChartComparisonProps) {
-  const [metric, setMetric] = useState<CompareMetric>('balance');
+  const metric: CompareMetric = viewMode === 'networth' ? 'netWorth' : 'balance';
   const gridColor = darkMode ? '#262626' : '#e2e8f0';
   const tickColor = darkMode ? '#737373' : '#64748b';
   const axisColor = darkMode ? '#262626' : '#e2e8f0';
@@ -255,21 +249,6 @@ export default function ProjectionChartComparison({
               Inflation-adjusted
             </span>
           )}
-          {/* Metric toggle */}
-          <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
-            {(['balance', 'netWorth', 'interest', 'contributions', 'debt'] as CompareMetric[]).map((m) => (
-              <button
-                key={m}
-                className={`px-2 py-1 text-[11px] rounded-md transition-all ${metric === m
-                  ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm font-medium'
-                  : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'
-                  }`}
-                onClick={() => setMetric(m)}
-              >
-                {METRIC_LABELS[m]}
-              </button>
-            ))}
-          </div>
           {/* Line/Bar toggle */}
           <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button

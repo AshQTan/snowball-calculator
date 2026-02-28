@@ -38,9 +38,17 @@ export default function CompositionChart({
 }: CompositionChartProps) {
     const [selectedYear, setSelectedYear] = useState(schedule.length);
     const [compView, setCompView] = useState<CompView>('combined');
-    const hasManyFunds = funds.length > 1;
+
+    // --- Fix #1 & #5: hasDebts drives ALL debt section visibility ---
     const hasDebts = debts.length > 0;
-    const showDetailedView = hasManyFunds || hasDebts;
+    const hasManyFunds = funds.length > 1;
+
+    // Fix #5: Show toggle when active strategy OR any other strategy has multi-fund/debt
+    const anyStrategyHasDetail = useMemo(() => {
+        if (hasManyFunds || hasDebts) return true;
+        if (!strategies || !allResults) return false;
+        return strategies.some(s => s.funds.length > 1 || (s.debts && s.debts.length > 0));
+    }, [hasManyFunds, hasDebts, strategies, allResults]);
 
     const clampedYear = Math.min(Math.max(selectedYear, 1), schedule.length);
     const row = schedule[clampedYear - 1];
@@ -61,7 +69,6 @@ export default function CompositionChart({
 
     // Per-fund cumulative data up to the selected year
     const fundData = useMemo(() => {
-        // Removed early return for !hasManyFunds to allow consistent chart usage in detailed view
         return funds.map((f) => {
             let cumContrib = 0;
             let cumInterest = 0;
@@ -84,48 +91,70 @@ export default function CompositionChart({
                 pctInterest: total > 0 ? (cumInterest / total) * 100 : 0,
             };
         });
-    }, [funds, schedule, clampedYear, hasManyFunds, row]);
+    }, [funds, schedule, clampedYear, row]);
 
+    // --- Fix #4: Per-debt data with initial principal track ---
     const debtData = useMemo(() => {
         if (!hasDebts || !row) return [];
-        // Removed early return for totalDebt <= 0 to allow showing paid off debts in list
-
         return debts.map(d => {
             const balance = row.debtBalances?.[d.id] || 0;
-            const current = balance;
-            // Use current principal as initial approximation if not stored, 
-            // but ideally we'd want the true initial from the debt object if we had it.
-            // Since we don't track historical initial per debt in the schedule easily without looking back,
-            // we will use the debt definition's principal as the "initial" for the bar visualization.
             const initial = d.principal;
-            const effectiveInitial = initial > 0 ? initial : current;
-            const basis = Math.max(effectiveInitial, current);
-
+            const effectiveInitial = initial > 0 ? initial : balance;
+            const paid = Math.max(0, effectiveInitial - balance);
             return {
                 debt: d,
                 balance,
+                initial: effectiveInitial,
+                paid,
                 pctOfTotal: (row.debtBalance || 0) > 0 ? (balance / (row.debtBalance || 1)) * 100 : 0,
-                initial,
-                current,
-                basis,
-                effectiveInitial
+                // What fraction of initial is remaining vs paid
+                pctRemaining: effectiveInitial > 0 ? (Math.min(balance, effectiveInitial) / effectiveInitial) * 100 : 0,
+                pctPaid: effectiveInitial > 0 ? (paid / effectiveInitial) * 100 : 0,
             };
         }).sort((a, b) => b.balance - a.balance);
     }, [debts, row, hasDebts]);
 
-    // Calculate maximum value for bar scaling (max of any single displayed component: Fund or Debt)
+    // Scale for detailed view: max among all funds and debts (against the initial, not current)
     const maxBarValue = useMemo(() => {
         if (compView !== 'by-fund') return 1;
         const maxFund = fundData.length > 0 ? Math.max(...fundData.map(f => f.total)) : 0;
-        const maxDebtCurrent = debtData.length > 0 ? Math.max(...debtData.map(d => d.current)) : 0;
-        return Math.max(maxFund, maxDebtCurrent, 1);
+        // Use effectiveInitial as the ceiling for debt bars so paid-off portion is visible
+        const maxDebt = debtData.length > 0 ? Math.max(...debtData.map(d => d.initial)) : 0;
+        return Math.max(maxFund, maxDebt, 1);
     }, [fundData, debtData, compView]);
 
+    // --- Fix #3: Stable combined debt breakdown always has 3 values ---
+    const combinedDebtBreakdown = useMemo(() => {
+        if (!hasDebts) return null;
+        const current = data.debtTotal;
+        const effectiveInitial = initialDebt > 0 ? initialDebt : current;
+        const basis = Math.max(effectiveInitial, current);
+        const remainingVal = Math.min(current, effectiveInitial);
+        // Interest accumulating = portion of current balance above initial (debt grew)
+        const accrualVal = Math.max(0, current - effectiveInitial);
+        const paidVal = Math.max(0, effectiveInitial - current);
 
+        const pctRemaining = basis > 0 ? (remainingVal / basis) * 100 : 0;
+        const pctAccrual = basis > 0 ? (accrualVal / basis) * 100 : 0;
+        const pctPaid = basis > 0 ? (paidVal / basis) * 100 : 0;
+
+        return { current, effectiveInitial, remainingVal, accrualVal, paidVal, pctRemaining, pctAccrual, pctPaid };
+    }, [hasDebts, data.debtTotal, initialDebt]);
+
+    const colorPaid = darkMode ? '#34d399' : '#10b981';
 
     const yearLabel = timelineMode === 'retirement' && row?.age
         ? `Age ${row.age}`
         : `Year ${row?.year ?? (clampedYear - 1)}`;
+
+    // Fix #7: scorecard conditions — use hasDebts uniformly
+    const showDebtScorecards = hasDebts;
+    const debtChange = (row?.totalDebtPayment || 0) - (row?.totalDebtInterest || 0);
+    const startDebt = (row?.debtBalance || 0) + debtChange;
+    const pctDebtChange = startDebt > 0 ? (debtChange / startDebt) * 100 : 0;
+    const isDebtReduction = debtChange >= 0;
+
+    const isMultiStrategy = strategies && strategies.length > 1;
 
     return (
         <div className="card">
@@ -134,7 +163,8 @@ export default function CompositionChart({
                     Wealth Composition
                 </h2>
                 <div className="flex items-center gap-2">
-                    {showDetailedView && (
+                    {/* Fix #5: Show toggle based on any strategy having detail-worthy content */}
+                    {anyStrategyHasDetail && (
                         <div className="relative group">
                             <button className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 px-2 py-1 rounded-md transition-colors">
                                 {COMP_VIEW_LABELS[compView]}
@@ -162,6 +192,7 @@ export default function CompositionChart({
 
             {/* Stacked horizontal bar */}
             <div className="space-y-3">
+                {/* ── ASSETS ── */}
                 <div className="flex items-center justify-between mb-1.5">
                     <h3 className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
                         Assets
@@ -170,138 +201,143 @@ export default function CompositionChart({
                         {formatCurrency(data.total)}
                     </span>
                 </div>
+
                 {compView === 'by-fund' ? (
                     <div className="space-y-1.5">
                         {fundData.map(({ fund, pctStart, pctContrib, pctInterest, pctOfTotal, startVal, contribVal, interestVal, total }) => {
+                            const barWidth = maxBarValue > 0 ? (total / maxBarValue) * 100 : 0;
                             return (
-                                <div key={fund.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${fund.color}40` }}>
+                                <div key={fund.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${fund.color}25` }}>
                                     <div className="flex items-center justify-between">
                                         <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{fund.name}</div>
-                                        <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">
+                                        <div className="text-[10px] text-slate-600 dark:text-neutral-300 font-semibold tabular-nums">
                                             {formatCurrency(total)}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="flex-1">
-                                            <div className="h-7 flex" style={{ width: `${(total / maxBarValue) * 100}%` }}>
-                                                <BarSegment pct={pctStart} color={COLOR_STARTING} label="Starting" value={startVal} size="sm" roundedClass="rounded-l-md" />
+                                        <div className="flex-1 h-7 bg-slate-100 dark:bg-neutral-800/60 rounded-md">
+                                            <div className="h-full flex [&>div:first-child]:rounded-l-md [&>div:last-child]:rounded-r-md" style={{ width: `${barWidth}%` }}>
+                                                <BarSegment pct={pctStart} color={COLOR_STARTING} label="Starting" value={startVal} size="sm" />
                                                 <BarSegment pct={pctContrib} color={COLOR_CONTRIBUTIONS} label="Contributions" value={contribVal} size="sm" />
-                                                <BarSegment pct={pctInterest} color={COLOR_INTEREST} label="Interest" value={interestVal} size="sm" textClass="text-white/90" roundedClass="rounded-r-md" />
+                                                <BarSegment pct={pctInterest} color={COLOR_INTEREST} label="Interest" value={interestVal} size="sm" textClass="text-white/90" />
                                             </div>
                                         </div>
-                                        <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right">{Math.round(pctOfTotal)}%</span>
+                                        <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right shrink-0">{Math.round(pctOfTotal)}%</span>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
                 ) : (
-                    <div className="w-full h-10 flex">
-                        <BarSegment pct={data.pctStart} color={COLOR_STARTING} label="Starting Balance" value={data.startVal} size="lg" roundedClass="rounded-l-lg" />
-                        <BarSegment pct={data.pctContrib} color={COLOR_CONTRIBUTIONS} label="Contributions" value={data.contribVal} size="lg" />
-                        <BarSegment pct={data.pctInterest} color={COLOR_INTEREST} label="Interest" value={data.interestVal} size="lg" textClass="text-white/90" roundedClass="rounded-r-lg" />
-                    </div>
+                    <>
+                        <div className="w-full h-10 flex rounded-lg [&>div:first-child]:rounded-l-lg [&>div:last-child]:rounded-r-lg">
+                            <BarSegment pct={data.pctStart} color={COLOR_STARTING} label="Starting Balance" value={data.startVal} size="lg" />
+                            <BarSegment pct={data.pctContrib} color={COLOR_CONTRIBUTIONS} label="Contributions" value={data.contribVal} size="lg" />
+                            <BarSegment pct={data.pctInterest} color={COLOR_INTEREST} label="Interest" value={data.interestVal} size="lg" textClass="text-white/90" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <DetailCard color={COLOR_STARTING} label="Starting Balance" pct={data.pctStart} value={data.startVal} />
+                            <DetailCard color={COLOR_CONTRIBUTIONS} label="Contributions" pct={data.pctContrib} value={data.contribVal} />
+                            <DetailCard color={COLOR_INTEREST} label="Interest" pct={data.pctInterest} value={data.interestVal} />
+                        </div>
+                    </>
                 )}
 
-                {/* Detail breakdown */}
-                {compView !== 'by-fund' && (
-                    <div className="grid grid-cols-3 gap-3">
-                        <DetailCard color={COLOR_STARTING} label="Starting Balance" pct={data.pctStart} value={data.startVal} />
-                        <DetailCard color={COLOR_CONTRIBUTIONS} label="Contributions" pct={data.pctContrib} value={data.contribVal} />
-                        <DetailCard color={COLOR_INTEREST} label="Interest" pct={data.pctInterest} value={data.interestVal} />
-                    </div>
-                )}
-
-                {/* DEBT SECTION */}
-                {/* DEBT SECTION */}
-                {(initialDebt > 0 || data.debtTotal > 0) && (
-                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-neutral-700">
+                {/* ── LIABILITIES ── Fix #1: gate on hasDebts, not debtTotal > 0 */}
+                {hasDebts && (
+                    <div className="mt-5 pt-4 border-t border-slate-200 dark:border-neutral-700">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
                                 Liabilities
                             </h3>
-                            <span className="text-xs font-semibold tabular-nums" style={{ color: COLOR_DEBT }}>
-                                {formatCurrency(data.debtTotal)}
+                            <span
+                                className={`text-xs font-semibold tabular-nums ${data.debtTotal <= 0 ? 'text-emerald-500 dark:text-emerald-400' : ''}`}
+                                style={data.debtTotal > 0 ? { color: COLOR_DEBT } : undefined}
+                            >
+                                {data.debtTotal <= 0 ? 'Paid Off ✓' : formatCurrency(data.debtTotal)}
                             </span>
                         </div>
 
-                        {compView === 'by-fund' && debtData.length > 0 ? (
-                            <div className="space-y-2">
-                                {debtData.map(({ debt, balance, pctOfTotal, current, effectiveInitial }) => {
-                                    // Calculate bar width based on current balance relative to max bar value
-                                    const barWidthPct = (current / maxBarValue) * 100;
-
-                                    const remainingVal = Math.min(current, effectiveInitial);
-                                    const excessVal = Math.max(0, current - effectiveInitial);
-
-                                    const pctRemaining = current > 0 ? (remainingVal / current) * 100 : 0;
-                                    const pctExcess = current > 0 ? (excessVal / current) * 100 : 0;
-
+                        {compView === 'by-fund' ? (
+                            /* Fix #4: Detailed debt bars — full-width track shows initial; filled = remaining */
+                            <div className="space-y-1.5">
+                                {debtData.map(({ debt, balance, initial, paid, pctOfTotal, pctRemaining, pctPaid }) => {
+                                    const barWidth = maxBarValue > 0 ? (initial / maxBarValue) * 100 : 0;
+                                    const isPaidOff = balance <= 0;
                                     return (
-                                        <div key={debt.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${debt.color}40` }}>
+                                        <div key={debt.id} className="space-y-0.5 p-2 rounded-lg" style={{ backgroundColor: `${debt.color}25` }}>
                                             <div className="flex items-center justify-between">
                                                 <div className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">{debt.name}</div>
-                                                <div className="text-[10px] text-slate-600 dark:text-neutral-500 font-medium tabular-nums">
-                                                    {formatCurrency(balance)}
+                                                <div className={`text-[10px] font-semibold tabular-nums ${isPaidOff ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-600 dark:text-neutral-300'}`}>
+                                                    {isPaidOff ? 'Paid Off ✓' : formatCurrency(balance)}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex-1">
-                                                    <div className="h-5 flex rounded-md bg-slate-100 dark:bg-neutral-800" style={{ width: `${barWidthPct}%` }}>
-                                                        <BarSegment pct={pctRemaining} color={COLOR_DEBT} label="Principal Remaining" value={remainingVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
-                                                        <BarSegment pct={pctExcess} color={COLOR_INTEREST} label="Interest Accumulating" value={excessVal} size="sm" roundedClass="first:rounded-l-md last:rounded-r-md" />
+                                                <div className="flex-1 h-5 bg-slate-100 dark:bg-neutral-800/60 rounded-md">
+                                                    {/* Outer container = full initial width for scale */}
+                                                    <div className="h-full flex [&>div:first-child]:rounded-l-md [&>div:last-child]:rounded-r-md" style={{ width: `${barWidth}%` }}>
+                                                        {/* Remaining debt portion */}
+                                                        <BarSegment
+                                                            pct={pctRemaining}
+                                                            color={COLOR_DEBT}
+                                                            label="Remaining"
+                                                            value={balance}
+                                                            size="sm"
+                                                        />
+                                                        {/* Paid-off portion */}
+                                                        <BarSegment
+                                                            pct={pctPaid}
+                                                            color={colorPaid}
+                                                            label="Paid Off"
+                                                            value={paid}
+                                                            size="sm"
+                                                            textClass="text-white/90"
+                                                        />
                                                     </div>
                                                 </div>
-                                                <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right">{Math.round(pctOfTotal)}%</span>
+                                                <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right shrink-0">{Math.round(pctOfTotal)}%</span>
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                {data.debtTotal > 0 || initialDebt > 0 ? (
-                                    <>
-                                        {(() => {
-                                            const current = data.debtTotal;
-                                            const effectiveInitial = initialDebt > 0 ? initialDebt : current;
-
-                                            const basis = Math.max(effectiveInitial, current);
-
-                                            const paidVal = Math.max(0, effectiveInitial - current);
-                                            const remainingVal = Math.min(current, effectiveInitial);
-                                            const excessVal = Math.max(0, current - effectiveInitial);
-
-                                            const pctPaid = basis > 0 ? (paidVal / basis) * 100 : 0;
-                                            const pctRemaining = basis > 0 ? (remainingVal / basis) * 100 : 0;
-                                            const pctExcess = basis > 0 ? (excessVal / basis) * 100 : 0;
-
-                                            const colorPaid = darkMode ? '#34d399' : '#bbf7d0';
-
-                                            return (
-                                                <>
-                                                    <div className="w-full h-8 flex rounded-lg bg-slate-100 dark:bg-neutral-800">
-                                                        <BarSegment pct={pctRemaining} color={COLOR_DEBT} label="Principal Remaining" value={remainingVal} size="lg" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
-                                                        <BarSegment pct={pctExcess} color={COLOR_INTEREST} label="Interest Accumulating" value={excessVal} size="lg" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
-                                                        <BarSegment pct={pctPaid} color={colorPaid} label="Paid" value={paidVal} size="lg" textClass="text-green-800 dark:text-green-100" roundedClass="first:rounded-l-lg last:rounded-r-lg" />
-                                                    </div>
-
-                                                    <div className={`grid ${excessVal > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-3 mt-3`}>
-                                                        <DetailCard color={COLOR_DEBT} label="Principal" pct={pctRemaining} value={remainingVal} />
-                                                        {excessVal > 0 ? (
-                                                            <DetailCard color={COLOR_INTEREST} label="Interest" pct={pctExcess} value={excessVal} />
-                                                        ) : (
-                                                            <DetailCard color={colorPaid} label="Paid" pct={pctPaid} value={paidVal} />
-                                                        )}
-                                                        {excessVal > 0 && <DetailCard color={colorPaid} label="Paid" pct={pctPaid} value={paidVal} />}
-                                                    </div>
-                                                </>
-                                            );
-                                        })()}
-                                    </>
-                                ) : null}
-
-                            </div>
+                            /* Fix #3: Stable 3-column debt breakdown in combined view */
+                            combinedDebtBreakdown && (
+                                <>
+                                    <div className="w-full h-8 flex rounded-lg bg-slate-100 dark:bg-neutral-800 [&>div:first-child]:rounded-l-lg [&>div:last-child]:rounded-r-lg">
+                                        <BarSegment
+                                            pct={combinedDebtBreakdown.pctRemaining}
+                                            color={COLOR_DEBT}
+                                            label="Principal Remaining"
+                                            value={combinedDebtBreakdown.remainingVal}
+                                            size="lg"
+                                        />
+                                        <BarSegment
+                                            pct={combinedDebtBreakdown.pctAccrual}
+                                            color={COLOR_INTEREST}
+                                            label="Accrued Interest"
+                                            value={combinedDebtBreakdown.accrualVal}
+                                            size="lg"
+                                            textClass="text-white/90"
+                                        />
+                                        <BarSegment
+                                            pct={combinedDebtBreakdown.pctPaid}
+                                            color={colorPaid}
+                                            label="Paid Off"
+                                            value={combinedDebtBreakdown.paidVal}
+                                            size="lg"
+                                            textClass="text-white/90"
+                                        />
+                                    </div>
+                                    {/* Always 3-column, stable layout */}
+                                    <div className="grid grid-cols-3 gap-3 mt-3">
+                                        <DetailCard color={COLOR_DEBT} label="Remaining" pct={combinedDebtBreakdown.pctRemaining} value={combinedDebtBreakdown.remainingVal} />
+                                        <DetailCard color={COLOR_INTEREST} label="Accrued Interest" pct={combinedDebtBreakdown.pctAccrual} value={combinedDebtBreakdown.accrualVal} />
+                                        <DetailCard color={colorPaid} label="Paid Off" pct={combinedDebtBreakdown.pctPaid} value={combinedDebtBreakdown.paidVal} />
+                                    </div>
+                                </>
+                            )
                         )}
                     </div>
                 )}
@@ -329,18 +365,17 @@ export default function CompositionChart({
 
             {/* Legend and Annual Scorecards */}
             <div className="flex flex-wrap items-center justify-between gap-y-3 mt-4 px-2">
+                {/* Fix #6: Legend always stable; debt entries only when hasDebts */}
                 <div className="flex flex-wrap items-center gap-4">
                     <LegendItem color={COLOR_STARTING} label="Starting Balance" />
                     <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
                     <LegendItem color={COLOR_INTEREST} label="Interest" />
-
-                    {(data.debtTotal > 0 || initialDebt > 0) && (
-                        <LegendItem color={COLOR_DEBT} label="Debt" />
-                    )}
+                    {hasDebts && <LegendItem color={COLOR_DEBT} label="Remaining Debt" />}
+                    {hasDebts && <LegendItem color={colorPaid} label="Paid Off" />}
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Asset Interest */}
+                    {/* Asset Growth scorecard — always shown */}
                     <div className="group/ag relative bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
                         <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">Asset Growth</span>
                         <div className="flex items-center gap-1 leading-none">
@@ -356,66 +391,59 @@ export default function CompositionChart({
                         </div>
                     </div>
 
-                    {/* Debt Reduction */}
-                    {(initialDebt > 0 || data.debtTotal > 0 || (row?.totalDebtPayment || 0) > 0) && (() => {
-                        const debtChange = (row?.totalDebtPayment || 0) - (row?.totalDebtInterest || 0);
-                        const startDebt = (row?.debtBalance || 0) + debtChange;
-                        const pctChange = startDebt > 0 ? (debtChange / startDebt) * 100 : 0;
-                        const isReduction = debtChange >= 0;
-
-                        return (
+                    {/* Fix #7: Debt Reduction and Net Worth — both gated on hasDebts */}
+                    {showDebtScorecards && (
+                        <>
                             <div className="group/dr relative bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
                                 <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">
-                                    {isReduction ? 'Debt Reduction' : 'Debt Growth'}
+                                    {isDebtReduction ? 'Debt Reduction' : 'Debt Growth'}
                                 </span>
                                 <div className="flex items-center gap-1 leading-none">
-                                    <span className={`text-xs font-semibold tabular-nums ${isReduction ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={!isReduction ? { color: COLOR_DEBT } : undefined}>
-                                        {isReduction ? '−' : '+'}{formatCurrency(Math.abs(debtChange))}
+                                    <span className={`text-xs font-semibold tabular-nums ${isDebtReduction ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={!isDebtReduction ? { color: COLOR_DEBT } : undefined}>
+                                        {isDebtReduction ? '−' : '+'}{formatCurrency(Math.abs(debtChange))}
                                     </span>
                                     {startDebt > 0 && (
-                                        <span className={`text-[9px] tabular-nums ${isReduction ? 'text-emerald-600/70 dark:text-emerald-400/70' : 'opacity-70'}`} style={!isReduction ? { color: COLOR_DEBT } : undefined}>
-                                            ({isReduction ? '−' : '+'}{formatPercent(Math.abs(pctChange))})
+                                        <span className={`text-[9px] tabular-nums ${isDebtReduction ? 'text-emerald-600/70 dark:text-emerald-400/70' : 'opacity-70'}`} style={!isDebtReduction ? { color: COLOR_DEBT } : undefined}>
+                                            ({isDebtReduction ? '−' : '+'}{formatPercent(Math.abs(pctDebtChange))})
                                         </span>
                                     )}
                                 </div>
                                 <div className="absolute bottom-full right-0 mb-2 w-56 px-3 py-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg text-xs text-slate-600 dark:text-neutral-300 leading-relaxed opacity-0 pointer-events-none group-hover/dr:opacity-100 transition-opacity z-50 shadow-xl text-left font-normal normal-case tracking-normal">
-                                    {isReduction
-                                        ? "Percentage decrease of your debt balance relative to the starting debt for this specific year."
-                                        : "Percentage increase of your debt balance relative to the starting debt for this specific year."}
+                                    {isDebtReduction
+                                        ? 'Percentage decrease of your debt balance relative to the starting debt for this specific year.'
+                                        : 'Percentage increase of your debt balance relative to the starting debt for this specific year.'}
                                 </div>
                             </div>
-                        );
-                    })()}
 
-                    {/* Net Worth */}
-                    {(initialDebt > 0 || data.debtTotal > 0) && (
-                        <div className="bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
-                            <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">Net Worth</span>
-                            <span
-                                className={`text-xs font-semibold tabular-nums leading-none ${data.total - data.debtTotal >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""}`}
-                                style={data.total - data.debtTotal < 0 ? { color: COLOR_DEBT } : undefined}
-                            >
-                                {data.total - data.debtTotal < 0 ? '−' : ''}{formatCurrency(Math.abs(data.total - data.debtTotal))}
-                            </span>
-                        </div>
+                            <div className="bg-slate-50 dark:bg-neutral-800/40 border border-slate-100 dark:border-neutral-700/50 rounded-md px-2 py-1 flex flex-col items-end">
+                                <span className="text-[9px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-none mb-1">Net Worth</span>
+                                <span
+                                    className={`text-xs font-semibold tabular-nums leading-none ${data.total - data.debtTotal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
+                                    style={data.total - data.debtTotal < 0 ? { color: COLOR_DEBT } : undefined}
+                                >
+                                    {data.total - data.debtTotal < 0 ? '−' : ''}{formatCurrency(Math.abs(data.total - data.debtTotal))}
+                                </span>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
 
-            {/* Strategy comparison bars */}
-            {strategies && strategies.length > 1 && allResults && (
+            {/* Fix #2 & #8: Strategy comparison with debt-aware net worth */}
+            {isMultiStrategy && allResults && (
                 <StrategyComparison
-                    strategies={strategies}
+                    strategies={strategies!}
                     activeStrategyId={activeStrategyId!}
                     allResults={allResults}
                     clampedYear={clampedYear}
-                    darkMode={darkMode}
                     onSwitchStrategy={onSwitchStrategy}
                 />
             )}
         </div>
     );
 }
+
+// ── Strategy Comparison (Fix #2 & #8) ──────────────────────────────────────
 
 function StrategyComparison({
     strategies,
@@ -428,16 +456,18 @@ function StrategyComparison({
     activeStrategyId: string;
     allResults: Map<string, ProjectionResult>;
     clampedYear: number;
-    darkMode: boolean;
     onSwitchStrategy?: (id: string) => void;
 }) {
+    const anyHasDebts = strategies.some(s => s.debts && s.debts.length > 0);
+
     const strategyData = useMemo(() => {
         return strategies.map((s) => {
             const result = allResults.get(s.id);
             if (!result || clampedYear < 1 || clampedYear > result.schedule.length) {
-                return { strategy: s, total: 0, pctStart: 0, pctContrib: 0, pctInterest: 0, startVal: 0, contribVal: 0, interestVal: 0 };
+                return { strategy: s, total: 0, pctStart: 0, pctContrib: 0, pctInterest: 0, startVal: 0, contribVal: 0, interestVal: 0, debt: 0, netWorth: 0 };
             }
             const row = result.schedule[clampedYear - 1];
+            const debt = row.debtBalance || 0;
             return {
                 strategy: s,
                 total: row.endBalance,
@@ -447,21 +477,38 @@ function StrategyComparison({
                 startVal: row.cumulativeStartingBalance,
                 contribVal: row.cumulativeContributions,
                 interestVal: row.cumulativeInterest,
+                debt,
+                netWorth: row.endBalance - debt,
             };
         });
     }, [strategies, allResults, clampedYear]);
 
+    // Sort by net worth when debts are present, otherwise by total assets
+    const sortedData = useMemo(() => {
+        if (!anyHasDebts) return [...strategyData].sort((a, b) => b.total - a.total);
+        return [...strategyData].sort((a, b) => b.netWorth - a.netWorth);
+    }, [strategyData, anyHasDebts]);
+
+    // Scale bars against total assets for visual consistency
     const maxTotal = Math.max(...strategyData.map((d) => d.total), 1);
 
     return (
         <div className="mt-4 pt-3 border-t border-slate-200 dark:border-neutral-700">
-            <div className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider mb-2 font-medium">
-                Strategy Comparison
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider font-medium">
+                    Strategy Comparison
+                </div>
+                {anyHasDebts && (
+                    <div className="text-[9px] text-slate-400 dark:text-neutral-500">
+                        sorted by net worth
+                    </div>
+                )}
             </div>
             <div className="space-y-1.5">
-                {strategyData.map(({ strategy, total, pctStart, pctContrib, pctInterest, startVal, contribVal, interestVal }) => {
+                {sortedData.map(({ strategy, total, pctStart, pctContrib, pctInterest, startVal, contribVal, interestVal, netWorth }) => {
                     const isActive = strategy.id === activeStrategyId;
                     const barWidth = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+                    const hasThisDebt = strategy.debts && strategy.debts.length > 0;
                     return (
                         <button
                             key={strategy.id}
@@ -473,37 +520,28 @@ function StrategyComparison({
                         >
                             <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: strategy.color }} />
+                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: strategy.color }} />
                                     <span className={`text-[11px] font-medium ${isActive ? 'text-slate-700 dark:text-neutral-200' : 'text-slate-500 dark:text-neutral-400'}`}>
                                         {strategy.name}
                                     </span>
                                 </div>
-                                <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 tabular-nums">
-                                    {formatCurrency(total)}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    {/* Fix #8: Show net worth for strategies with debt */}
+                                    {hasThisDebt && (
+                                        <span className={`text-[10px] tabular-nums ${netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
+                                            style={netWorth < 0 ? { color: COLOR_DEBT } : undefined}>
+                                            NW: {netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(netWorth))}
+                                        </span>
+                                    )}
+                                    <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 tabular-nums">
+                                        {formatCurrency(total)}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="h-5 flex" style={{ width: `${barWidth}%` }}>
-                                {pctStart > 0 && (
-                                    <div
-                                        className="h-full rounded-l-sm"
-                                        style={{ width: `${pctStart}%`, backgroundColor: COLOR_STARTING }}
-                                        title={`Starting: ${formatCurrency(startVal)}`}
-                                    />
-                                )}
-                                {pctContrib > 0 && (
-                                    <div
-                                        className="h-full"
-                                        style={{ width: `${pctContrib}%`, backgroundColor: COLOR_CONTRIBUTIONS }}
-                                        title={`Contributions: ${formatCurrency(contribVal)}`}
-                                    />
-                                )}
-                                {pctInterest > 0 && (
-                                    <div
-                                        className="h-full rounded-r-sm"
-                                        style={{ width: `${pctInterest}%`, backgroundColor: COLOR_INTEREST }}
-                                        title={`Interest: ${formatCurrency(interestVal)}`}
-                                    />
-                                )}
+                            <div className="h-5 flex rounded-sm [&>div:first-child]:rounded-l-sm [&>div:last-child]:rounded-r-sm" style={{ width: `${barWidth}%` }}>
+                                <BarSegment pct={pctStart} color={COLOR_STARTING} label="Starting Balance" value={startVal} size="sm" />
+                                <BarSegment pct={pctContrib} color={COLOR_CONTRIBUTIONS} label="Contributions" value={contribVal} size="sm" />
+                                <BarSegment pct={pctInterest} color={COLOR_INTEREST} label="Interest" value={interestVal} size="sm" textClass="text-white/90" />
                             </div>
                         </button>
                     );
@@ -513,12 +551,14 @@ function StrategyComparison({
     );
 }
 
+// ── Detail Card ──────────────────────────────────────────────────────────────
+
 function DetailCard({ color, label, pct, value }: { color: string; label: string; pct: number; value: number }) {
     return (
         <div className="bg-slate-50 dark:bg-neutral-800/40 rounded-lg p-3">
             <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
-                <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider">{label}</span>
+                <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-tight">{label}</span>
             </div>
             <div className="text-sm font-semibold text-slate-800 dark:text-neutral-200 tabular-nums">{formatPercent(pct)}</div>
             <div className="text-xs text-slate-400 dark:text-neutral-500 tabular-nums">{formatCurrency(value)}</div>
@@ -526,8 +566,7 @@ function DetailCard({ color, label, pct, value }: { color: string; label: string
     );
 }
 
-
-
+// ── Bar Segment ──────────────────────────────────────────────────────────────
 
 function BarSegment({
     pct,
@@ -536,7 +575,6 @@ function BarSegment({
     value,
     size,
     textClass = 'text-white',
-    roundedClass = '',
 }: {
     pct: number;
     color: string;
@@ -544,14 +582,13 @@ function BarSegment({
     value: number;
     size: 'sm' | 'lg';
     textClass?: string;
-    roundedClass?: string;
 }) {
     if (pct <= 0) return null;
     const showInline = size === 'lg' ? pct >= 8 : pct >= 10;
     const fontSize = size === 'lg' ? 'text-xs' : 'text-[10px]';
     return (
         <div
-            className={`group/seg relative h-full flex items-center justify-center ${fontSize} font-medium ${textClass} ${roundedClass} transition-all duration-300`}
+            className={`group/seg relative h-full flex items-center justify-center ${fontSize} font-medium ${textClass} transition-all duration-300`}
             style={{ width: `${pct}%`, backgroundColor: color, minWidth: pct > 3 ? undefined : 0 }}
         >
             {showInline && formatPercent(pct, 0)}

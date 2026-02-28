@@ -413,6 +413,18 @@ export default function ProjectionChartGrid({
                 Inflation-adjusted
               </span>
             )}
+            {hasDebts && (
+              <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5 text-[11px]">
+                <button
+                  className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'assets' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                  onClick={() => onViewModeChange('assets')}
+                >Assets</button>
+                <button
+                  className={`px-2 py-1 rounded-md font-medium transition-all ${viewMode === 'networth' ? 'bg-white dark:bg-neutral-700 text-slate-800 dark:text-neutral-200 shadow-sm' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400'}`}
+                  onClick={() => onViewModeChange('networth')}
+                >Net Worth</button>
+              </div>
+            )}
             <div className="flex bg-slate-100 dark:bg-neutral-800 rounded-lg p-0.5">
               <button
                 className="p-1.5 rounded-md transition-all text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-400 group relative"
@@ -455,6 +467,7 @@ export default function ProjectionChartGrid({
           timelineMode={timelineMode}
           chartMode={chartMode}
           darkMode={darkMode}
+          viewMode={viewMode}
           onChartModeChange={onChartModeChange}
           hideHeader
           showMilestones={showMilestones}
