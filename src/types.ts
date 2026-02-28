@@ -174,7 +174,7 @@ export const DEBT_APR_PRESETS: { label: string; rate: number }[] = [
 ];
 
 export const STRATEGY_COLORS = [
-  '#0ea5e9', '#ef4444', '#86c232', '#8b5cf6', '#ec4899',
+  '#0ea5e9', '#fb7185', '#84cc16', '#ec4899', '#06b6d4', '#818cf8',
 ];
 
 export const MAX_STRATEGIES = 5;
