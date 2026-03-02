@@ -141,7 +141,7 @@ export default function CompositionChart({
         return { current, effectiveInitial, remainingVal, accrualVal, paidVal, pctRemaining, pctAccrual, pctPaid };
     }, [hasDebts, data.debtTotal, initialDebt]);
 
-    const colorPaid = darkMode ? '#34d399' : '#10b981';
+    const colorPaidBorder = darkMode ? 'rgba(148,163,184,0.5)' : 'rgba(148,163,184,0.6)';
 
     const yearLabel = timelineMode === 'retirement' && row?.age
         ? `Age ${row.age}`
@@ -292,15 +292,27 @@ export default function CompositionChart({
                                                             value={balance}
                                                             size="sm"
                                                         />
-                                                        {/* Paid-off portion */}
-                                                        <BarSegment
-                                                            pct={pctPaid}
-                                                            color={colorPaid}
-                                                            label="Paid Off"
-                                                            value={paid}
-                                                            size="sm"
-                                                            textClass="text-white/90"
-                                                        />
+                                                        {/* Paid-off portion — hollow outline */}
+                                                        {pctPaid > 0 && (
+                                                            <div
+                                                                className="group/seg relative h-full flex items-center justify-center text-[10px] font-medium text-slate-400 dark:text-neutral-500 transition-all duration-300"
+                                                                style={{
+                                                                    width: `${pctPaid}%`,
+                                                                    borderTop: `1.5px solid ${colorPaidBorder}`,
+                                                                    borderRight: `1.5px solid ${colorPaidBorder}`,
+                                                                    borderBottom: `1.5px solid ${colorPaidBorder}`,
+                                                                    borderLeft: isPaidOff ? `1.5px solid ${colorPaidBorder}` : 'none',
+                                                                    borderRadius: isPaidOff ? '3px' : '0 3px 3px 0',
+                                                                    minWidth: pctPaid > 3 ? undefined : 0
+                                                                }}
+                                                            >
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-800 dark:bg-neutral-900 text-white text-[10px] rounded-md px-2 py-1 opacity-0 invisible group-hover/seg:opacity-100 group-hover/seg:visible transition-all z-30 whitespace-nowrap pointer-events-none shadow-lg">
+                                                                    <div className="font-medium">Paid Off</div>
+                                                                    <div className="tabular-nums">{formatCurrency(paid)} · {formatPercent(pctPaid, 1)}</div>
+                                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-neutral-900" />
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <span className="text-[11px] font-medium text-slate-500 dark:text-neutral-400 tabular-nums w-[36px] text-right shrink-0">{Math.round(pctOfTotal)}%</span>
@@ -329,20 +341,32 @@ export default function CompositionChart({
                                             size="lg"
                                             textClass="text-white/90"
                                         />
-                                        <BarSegment
-                                            pct={combinedDebtBreakdown.pctPaid}
-                                            color={colorPaid}
-                                            label="Paid Off"
-                                            value={combinedDebtBreakdown.paidVal}
-                                            size="lg"
-                                            textClass="text-white/90"
-                                        />
+                                        {combinedDebtBreakdown.pctPaid > 0 && (
+                                            <div
+                                                className="group/seg relative h-full flex items-center justify-center text-xs font-medium text-slate-400 dark:text-neutral-500 transition-all duration-300"
+                                                style={{
+                                                    width: `${combinedDebtBreakdown.pctPaid}%`,
+                                                    borderTop: `1.5px solid ${colorPaidBorder}`,
+                                                    borderRight: `1.5px solid ${colorPaidBorder}`,
+                                                    borderBottom: `1.5px solid ${colorPaidBorder}`,
+                                                    borderLeft: data.debtTotal <= 0 ? `1.5px solid ${colorPaidBorder}` : 'none',
+                                                    borderRadius: data.debtTotal <= 0 ? '4px' : '0 4px 4px 0',
+                                                    minWidth: combinedDebtBreakdown.pctPaid > 3 ? undefined : 0
+                                                }}
+                                            >
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-800 dark:bg-neutral-900 text-white text-[10px] rounded-md px-2 py-1 opacity-0 invisible group-hover/seg:opacity-100 group-hover/seg:visible transition-all z-30 whitespace-nowrap pointer-events-none shadow-lg">
+                                                    <div className="font-medium">Paid Off</div>
+                                                    <div className="tabular-nums">{formatCurrency(combinedDebtBreakdown.paidVal)} · {formatPercent(combinedDebtBreakdown.pctPaid, 1)}</div>
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-neutral-900" />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     {/* Always 3-column, stable layout */}
                                     <div className="grid grid-cols-3 gap-3 mt-3">
                                         <DetailCard color={COLOR_DEBT} label="Remaining" pct={combinedDebtBreakdown.pctRemaining} value={combinedDebtBreakdown.remainingVal} />
                                         <DetailCard color={COLOR_INTEREST} label="Accrued Interest" pct={combinedDebtBreakdown.pctAccrual} value={combinedDebtBreakdown.accrualVal} />
-                                        <DetailCard color={colorPaid} label="Paid Off" pct={combinedDebtBreakdown.pctPaid} value={combinedDebtBreakdown.paidVal} />
+                                        <DetailCard color={colorPaidBorder} label="Paid Off" pct={combinedDebtBreakdown.pctPaid} value={combinedDebtBreakdown.paidVal} outlined />
                                     </div>
                                 </>
                             )
@@ -379,7 +403,6 @@ export default function CompositionChart({
                     <LegendItem color={COLOR_CONTRIBUTIONS} label="Contributions" />
                     <LegendItem color={COLOR_INTEREST} label="Interest" />
                     {hasDebts && <LegendItem color={COLOR_DEBT} label="Remaining Debt" />}
-                    {hasDebts && <LegendItem color={colorPaid} label="Paid Off" />}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -473,6 +496,7 @@ function StrategyBarRow({
     maxDebtVal,
     colorDebtInterest,
     onSwitch,
+    sortBy,
 }: {
     rowData: StrategyRowData;
     isActive: boolean;
@@ -482,6 +506,7 @@ function StrategyBarRow({
     maxDebtVal: number;
     colorDebtInterest: string;
     onSwitch: () => void;
+    sortBy: 'netWorth' | 'assets';
 }) {
     const { strategy, total, pctStart, pctContrib, pctInterest, startVal, contribVal, interestVal, netWorth, debt, debtInterest, debtPrincipal, initialDebt } = rowData;
     const [hovered, setHovered] = useState<{ label: string; lines: string[]; xPct: number } | null>(null);
@@ -520,15 +545,17 @@ function StrategyBarRow({
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {anyHasDebts && (
+                    {anyHasDebts && sortBy === 'netWorth' && (
                         <span className={`text-[10px] tabular-nums ${netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
                             style={netWorth < 0 ? { color: COLOR_DEBT } : undefined}>
                             NW: {netWorth < 0 ? '−' : ''}{formatCurrency(Math.abs(netWorth))}
                         </span>
                     )}
-                    <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 tabular-nums">
-                        {formatCurrency(total)}
-                    </span>
+                    {(!anyHasDebts || sortBy === 'assets') && (
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-neutral-300 tabular-nums">
+                            {formatCurrency(total)}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -724,6 +751,7 @@ function StrategyComparison({
                         maxDebtVal={maxDebtVal}
                         colorDebtInterest={colorDebtInterest}
                         onSwitch={() => onSwitchStrategy?.(rowData.strategy.id)}
+                        sortBy={sortBy}
                     />
                 ))}
             </div>
@@ -755,11 +783,11 @@ function StrategyComparison({
 
 // ── Detail Card ──────────────────────────────────────────────────────────────
 
-function DetailCard({ color, label, pct, value }: { color: string; label: string; pct: number; value: number }) {
+function DetailCard({ color, label, pct, value, outlined }: { color: string; label: string; pct: number; value: number; outlined?: boolean }) {
     return (
         <div className="bg-slate-50 dark:bg-neutral-800/40 rounded-lg p-3">
             <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                <div className="w-2 h-2 rounded-sm flex-shrink-0" style={outlined ? { border: `1.5px solid ${color}` } : { backgroundColor: color }} />
                 <span className="text-[10px] text-slate-400 dark:text-neutral-500 uppercase tracking-wider leading-tight">{label}</span>
             </div>
             <div className="text-sm font-semibold text-slate-800 dark:text-neutral-200 tabular-nums">{formatPercent(pct)}</div>
