@@ -10,6 +10,7 @@ import FundsPanel from './components/FundsPanel';
 import ProjectionChart from './components/ProjectionChart';
 import ProjectionChartGrid from './components/ProjectionChartGrid';
 import CompositionChart from './components/CompositionChart';
+import StrategyComparisonCard from './components/StrategyComparisonCard';
 import SummaryStats, { MilestoneBadge } from './components/SummaryStats';
 import ScheduleTable from './components/ScheduleTable';
 
@@ -21,6 +22,7 @@ export default function App() {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [chartViewMode, setChartViewMode] = useState<ChartViewMode>('assets');
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [milestoneBasis, setMilestoneBasis] = useState<'assets' | 'netWorth'>('assets');
   const [newMsName, setNewMsName] = useState('');
   const [newMsAmount, setNewMsAmount] = useState('');
@@ -487,18 +489,49 @@ export default function App() {
                 onViewModeChange={handleViewModeChange}
               />
             )}
-            <CompositionChart
-              schedule={result.schedule}
-              funds={activeFunds}
-              debts={activeDebts}
-              initialDebt={result.initialDebtBalance}
-              darkMode={darkMode}
-              timelineMode={state.global.timelineMode}
-              strategies={state.strategies}
-              activeStrategyId={state.activeStrategyId}
-              allResults={allResults}
-              onSwitchStrategy={setActiveStrategyId}
-            />
+            {state.strategies.length > 1 ? (
+              /* Grouped outer card containing both subpanels */
+              <div className="card !p-0 overflow-hidden">
+                <div className="p-5">
+                  <CompositionChart
+                    schedule={result.schedule}
+                    funds={activeFunds}
+                    debts={activeDebts}
+                    initialDebt={result.initialDebtBalance}
+                    darkMode={darkMode}
+                    timelineMode={state.global.timelineMode}
+                    selectedYear={selectedYear ?? result.schedule.length}
+                    onYearChange={setSelectedYear}
+                    asSubpanel
+                  />
+                </div>
+                <div className="border-t border-slate-200 dark:border-neutral-800 mx-0" />
+                <div className="p-5 bg-slate-50/60 dark:bg-neutral-800/20">
+                  <StrategyComparisonCard
+                    strategies={state.strategies}
+                    activeStrategyId={state.activeStrategyId}
+                    allResults={allResults}
+                    selectedYear={selectedYear ?? result.schedule.length}
+                    darkMode={darkMode}
+                    timelineMode={state.global.timelineMode}
+                    scheduleLength={result.schedule.length}
+                    onSwitchStrategy={setActiveStrategyId}
+                    asSubpanel
+                  />
+                </div>
+              </div>
+            ) : (
+              <CompositionChart
+                schedule={result.schedule}
+                funds={activeFunds}
+                debts={activeDebts}
+                initialDebt={result.initialDebtBalance}
+                darkMode={darkMode}
+                timelineMode={state.global.timelineMode}
+                selectedYear={selectedYear ?? result.schedule.length}
+                onYearChange={setSelectedYear}
+              />
+            )}
             <ScheduleTable
               schedule={result.schedule}
               funds={activeFunds}
